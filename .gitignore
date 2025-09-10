@@ -1,0 +1,24 @@
+# Node.js
+node_modules/
+coverage/
+deployments/
+npm-debug.log
+yarn-error.log
+
+# Hardhat
+artifacts/
+cache/
+typechain/
+
+# React / Frontend
+/build
+/.env
+/.DS_Store
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+
