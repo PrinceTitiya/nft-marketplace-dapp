@@ -20,5 +20,5 @@ typechain/
 
 # Logs
 *.log
-
+*.env
 
