@@ -28,3 +28,5 @@ mintAndList()
         console.error(error)
         process.exit(1)
     })
+
+    // 0x94953b60

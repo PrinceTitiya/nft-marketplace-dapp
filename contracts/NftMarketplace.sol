@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 // Create a decentralized NFT marketplace
-// 1. `ListItem` : list NFT on market place  ✅
+// 1. `ListItem` : list NFT on market place  
 // 2. `buyItem` : Buy the NFTs
 // 3. `cancelItem` : cancel a listing
 // 4. `updateListing` : update Price
@@ -37,7 +37,6 @@ contract NftMarketplace is ReentrancyGuard{
     // NFT contract address -> NFT TokenId -> Listing
     // (keeps track of which NFTs are listed for sale)
     mapping(address=>mapping(uint256 => Listing)) private s_listings;
-
     //seller address -> amount earned
     mapping(address=>uint256) private s_proceeds;
 
@@ -82,7 +81,7 @@ contract NftMarketplace is ReentrancyGuard{
     /*
     * @notice Method for listing your NFT on the marketplace
     * @param nftAddress: Address for the nft
-    * @param tokenId: Address of the NFT
+    * @param tokenId: tokenId of the NFT minted or listed
     * @param price: sale price of the listed token
     * @dev technically, we could have contract be the escrow for the NFTs
     * but this way people can still hold their NFTs when listed
