@@ -5,11 +5,53 @@ import { marketplaceAddress, nftAddress } from "../constants/network";
 import { ethers } from "ethers"; 
 import nftAbi from "../constants/BasicNft.json"
 
+// ✅ Helper: Convert ipfs:// URIs to HTTP gateway URLs
+// Browsers can't resolve ipfs:// natively, so we proxy through a public gateway
+function resolveIpfsUri(uri) {
+  if (!uri) return "";
+  if (uri.startsWith("ipfs://")) {
+    return uri.replace("ipfs://", "https://ipfs.io/ipfs/");
+  }
+  return uri; // already an HTTP URL
+}
+
+// ✅ Helper: Fetch NFT metadata (name + image) from the tokenURI
+async function fetchNftMetadata(publicClient, nftAddr, tokenId) {
+  try {
+    // Step 1: Call tokenURI(tokenId) on the NFT contract
+    const tokenUri = await publicClient.readContract({
+      address: nftAddr,
+      abi: nftAbi,
+      functionName: "tokenURI",
+      args: [BigInt(tokenId)],
+    });
+
+    // Step 2: Convert ipfs:// to https:// so we can fetch it
+    const httpUrl = resolveIpfsUri(tokenUri);
+
+    // Step 3: Fetch the JSON metadata from IPFS
+    const response = await fetch(httpUrl);
+    const metadata = await response.json();
+
+    // Step 4: Resolve the image URI inside the metadata too
+    return {
+      name: metadata.name || `NFT #${tokenId}`,
+      description: metadata.description || "",
+      image: resolveIpfsUri(metadata.image),
+      attributes: metadata.attributes || [],
+    };
+  } catch (err) {
+    console.error(`Failed to fetch metadata for token ${tokenId}:`, err);
+    return null;
+  }
+}
 
 export default function Home() {
   const [listings, setListings] = useState([]);
+  const [nftMetadata, setNftMetadata] = useState({}); // tokenId -> metadata
   const publicClient = usePublicClient();
-  // ✅ Fetch past listings
+
+  //  Fetches past listings
   useEffect(() => {
     async function fetchListings() {
       try{
@@ -43,6 +85,17 @@ export default function Home() {
         }
 
         setListings(results);
+
+        // Fetch metadata for each listed NFT
+        const metadataMap = {};
+        for (const item of results) {
+          const meta = await fetchNftMetadata(publicClient, item.nftAddress, item.tokenId);
+          if (meta) {
+            metadataMap[item.tokenId] = meta;
+          }
+        }
+        setNftMetadata(metadataMap);
+
       } catch (err) {
         console.error("Fetch listings failed:", err);
       }
@@ -51,14 +104,14 @@ export default function Home() {
     fetchListings();
   }, []);
 
-  // ✅ Watch new listings
+  //  Watch new listings
   useWatchContractEvent({
     address: marketplaceAddress,
     abi: marketplaceAbi,
     eventName: "ItemListed",
 
     onLogs(logs) {
-      logs.forEach((log) => {
+      logs.forEach(async (log) => {
         const { args } = log;
         if (!args) return;
 
@@ -77,9 +130,16 @@ export default function Home() {
           );
           return exists ? prev : [...prev, newListing];
         });
+
+        // Also fetch metadata for the newly listed NFT
+        const meta = await fetchNftMetadata(publicClient, newListing.nftAddress, newListing.tokenId);
+        if (meta) {
+          setNftMetadata((prev) => ({ ...prev, [newListing.tokenId]: meta }));
+        }
       });
     }
   });
+
   //Watch bought items (remove item when sold from homePage)
   useWatchContractEvent({
     address: marketplaceAddress,
@@ -90,13 +150,13 @@ export default function Home() {
         const { args } = log;
         if (!args) return;
 
-        const boughtTokenIdd = args.tokenId.toString()
+        const boughtTokenId = args.tokenId.toNumber()
         const nftAddress = args.nftAddress;
 
         setListings((prev) => 
         prev.filter(
           (l) => 
-            !(l.nftAddress === nftAddress && l.tokenId === boughtTokenIdd)
+            !(l.nftAddress === nftAddress && l.tokenId === boughtTokenId)
         ))
 
       })
@@ -104,6 +164,7 @@ export default function Home() {
   })
 
   const { writeContract} = useWriteContract();
+
   const handleBuy = async(listing) => {
     try{
       await writeContract({
@@ -126,37 +187,61 @@ export default function Home() {
         <p className="text-center text-gray-500">No NFTs listed yet</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {listings.map((listing, i) => (
-            <div
-              key={i}
-              className="bg-white shadow-lg rounded-2xl p-4 hover:shadow-xl transition"
-            >
-              {/* Placeholder NFT image */}
-              <div className="w-full h-40 bg-gray-200 rounded-xl mb-4 flex items-center justify-center text-gray-400">
-                NFT #{listing.tokenId}
+          {listings.map((listing, i) => {
+            const meta = nftMetadata[listing.tokenId];
+            return (
+              <div
+                key={i}
+                className="bg-white shadow-lg rounded-2xl p-4 hover:shadow-xl transition"
+              >
+                {/* NFT Image from IPFS metadata */}
+                {meta?.image ? (
+                  <img
+                    src={meta.image}
+                    alt={meta.name || `NFT #${listing.tokenId}`}
+                    className="w-full h-48 object-cover rounded-xl mb-4"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      e.target.style.display = "none";
+                      e.target.nextSibling.style.display = "flex";
+                    }}
+                  />
+                ) : null}
+                {/* Fallback placeholder (shown while loading or on error) */}
+                <div
+                  className="w-full h-48 bg-gray-200 rounded-xl mb-4 flex items-center justify-center text-gray-400"
+                  style={{ display: meta?.image ? "none" : "flex" }}
+                >
+                  {meta ? "Image failed to load" : "Loading..."}
+                </div>
+
+                {/*  NFT Name from metadata */}
+                {meta?.name && (
+                  <p className="text-lg font-bold text-gray-900 mb-1">{meta.name}</p>
+                )}
+
+                <p className="text-sm text-gray-500 truncate font-semibold">
+                  Seller: {listing.seller}
+                </p>
+                <p className="text-sm text-gray-700 font-semibold">
+                  Token ID:{" "}
+                  <span>{listing.tokenId}</span>
+                </p>
+                <p className="text-sm text-gray-700 font-semibold">
+                  Price:{" "}
+                  <span className="font-semibold">
+                    {ethers.formatEther(listing.price)} ETH
+                    </span>
+                </p>
+
+                <button
+                onClick={()=>handleBuy(listing)}
+                className="mt-3 px-4 py-2 bg-black text-white rounded-lg text-center font-medium transition-all duration-200 hover:bg-gray-800 hover:scale-105">
+                  Buy Now
+                </button>
               </div>
-
-              <p className="text-sm text-gray-500 truncate font-semibold">
-                Seller: {listing.seller}
-              </p>
-              <p className="text-sm text-gray-700 font-semibold">
-                Token ID:{" "}
-                <span>{listing.tokenId}</span>
-              </p>
-              <p className="text-sm text-gray-700 font-semibold">
-                Price:{" "}
-                <span className="font-semibold">
-                  {ethers.formatEther(listing.price)} ETH
-                  </span>
-              </p>
-
-              <button
-              onClick={()=>handleBuy(listing)}
-              className="px-4 py-2 bg-black text-white rounded-lg text-center font-medium transition-all duration-200 hover:bg-gray-800 hover:scale-105">
-                Buy Now
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -82,7 +82,7 @@ export default function SellNft() {
     }
   };
 
-  // ✅ List NFT
+  //  List a new NFT!
   const handleListItem = async () => {
     if (!walletClient) return;
 
