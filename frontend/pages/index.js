@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { usePublicClient, useWatchContractEvent, useWriteContract } from "wagmi";
+import { usePublicClient, useWatchContractEvent, useWriteContract, useAccount } from "wagmi";
 import marketplaceAbi from "../constants/Marketplace.json";
 import { marketplaceAddress, nftAddress } from "../constants/network";
 import { ethers } from "ethers"; 
 import nftAbi from "../constants/BasicNft.json"
 
-// ✅ Helper: Convert ipfs:// URIs to HTTP gateway URLs
+//  Convert ipfs:// URIs to HTTP gateway URLs
 // Browsers can't resolve ipfs:// natively, so we proxy through a public gateway
 function resolveIpfsUri(uri) {
   if (!uri) return "";
@@ -15,7 +15,7 @@ function resolveIpfsUri(uri) {
   return uri; // already an HTTP URL
 }
 
-// ✅ Helper: Fetch NFT metadata (name + image) from the tokenURI
+//  Fetch NFT metadata (name + image) from the tokenURI
 async function fetchNftMetadata(publicClient, nftAddr, tokenId) {
   try {
     // Step 1: Call tokenURI(tokenId) on the NFT contract
@@ -50,6 +50,7 @@ export default function Home() {
   const [listings, setListings] = useState([]);
   const [nftMetadata, setNftMetadata] = useState({}); // tokenId -> metadata
   const publicClient = usePublicClient();
+  const { address: connectedAddress } = useAccount();
 
   //  Fetches past listings
   useEffect(() => {
@@ -194,25 +195,52 @@ export default function Home() {
                 key={i}
                 className="bg-white shadow-lg rounded-2xl p-4 hover:shadow-xl transition"
               >
-                {/* NFT Image from IPFS metadata */}
-                {meta?.image ? (
-                  <img
-                    src={meta.image}
-                    alt={meta.name || `NFT #${listing.tokenId}`}
-                    className="w-full h-48 object-cover rounded-xl mb-4"
-                    onError={(e) => {
-                      // Fallback if image fails to load
-                      e.target.style.display = "none";
-                      e.target.nextSibling.style.display = "flex";
-                    }}
-                  />
-                ) : null}
-                {/* Fallback placeholder (shown while loading or on error) */}
-                <div
-                  className="w-full h-48 bg-gray-200 rounded-xl mb-4 flex items-center justify-center text-gray-400"
-                  style={{ display: meta?.image ? "none" : "flex" }}
-                >
-                  {meta ? "Image failed to load" : "Loading..."}
+                {/* NFT Image from IPFS metadata — wrapped for badge overlay */}
+                <div style={{ position: "relative" }}>
+                  {meta?.image ? (
+                    <img
+                      src={meta.image}
+                      alt={meta.name || `NFT #${listing.tokenId}`}
+                      className="w-full h-48 object-cover rounded-xl mb-4"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  {/* Fallback placeholder (shown while loading or on error) */}
+                  <div
+                    className="w-full h-48 bg-gray-200 rounded-xl mb-4 flex items-center justify-center text-gray-400"
+                    style={{ display: meta?.image ? "none" : "flex" }}
+                  >
+                    {meta ? "Image failed to load" : "Loading..."}
+                  </div>
+
+                  {/* ✅ "Owned by you" badge — shown when connected wallet == seller */}
+                  {connectedAddress &&
+                    listing.seller.toLowerCase() === connectedAddress.toLowerCase() && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: "8px",
+                          right: "8px",
+                          backgroundColor: "#7c3aed",
+                          color: "#fff",
+                          fontSize: "0.65rem",
+                          fontWeight: "700",
+                          letterSpacing: "0.05em",
+                          padding: "3px 8px",
+                          borderRadius: "9999px",
+                          textTransform: "uppercase",
+                          boxShadow: "0 2px 6px rgba(124,58,237,0.5)",
+                          pointerEvents: "none",
+                          zIndex: 10,
+                        }}
+                      >
+                        # Owned by you
+                      </span>
+                    )}
                 </div>
 
                 {/*  NFT Name from metadata */}
