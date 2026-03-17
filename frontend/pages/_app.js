@@ -2,8 +2,8 @@ import "@/styles/globals.css";
 import Head from "next/head";
 import "@rainbow-me/rainbowkit/styles.css";
 
-//--- (wagmi + rainbow-kit) imports ----
-import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
+// wagmi + rainbow-kit imports
+import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -40,12 +40,12 @@ export default function App({ Component, pageProps }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+        <RainbowKitProvider modalSize="compact" theme={darkTheme()}>
           <Head>
             <title>NFT Marketplace</title>
             <meta
               name="description"
-              content="NFT Marketplace built with Next.js"
+              content="NFT Marketplace to sell, buy and explore nfts"
             />
             <link rel="icon" href="/favicon.ico" />
           </Head>
