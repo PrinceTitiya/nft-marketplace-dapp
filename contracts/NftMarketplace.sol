@@ -4,13 +4,6 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-// Create a decentralized NFT marketplace
-// 1. `ListItem` : list NFT on market place  
-// 2. `buyItem` : Buy the NFTs
-// 3. `cancelItem` : cancel a listing
-// 4. `updateListing` : update Price
-// 5. `withdrawProceeds` : withdraw payment for my bought NFTs
-
 error NftMarketplace__PriceMustBeAboveZero();
 error NftMarketplace__NotApprovedForMarketplace();
 error NftMarketplace__AlreadyListed(address nftAddress, uint256 tokenId);
@@ -39,7 +32,6 @@ contract NftMarketplace is ReentrancyGuard{
     mapping(address=>mapping(uint256 => Listing)) private s_listings;
     //seller address -> amount earned
     mapping(address=>uint256) private s_proceeds;
-
 
     /////////////////
     //  modifiers //
@@ -91,8 +83,6 @@ contract NftMarketplace is ReentrancyGuard{
         address nftAddress,
         uint256 tokenId,
         uint256 price
-        //Challenge: Have this contract accept payment in a subset of tokens as well
-        //Hint: Use chainlink Pricefeed to convert the price of the tokens between each other
     )
         external
         notListed(nftAddress, tokenId, msg.sender) 
@@ -102,8 +92,7 @@ contract NftMarketplace is ReentrancyGuard{
                 revert NftMarketplace__PriceMustBeAboveZero();
         }
         // 1. send the NFT to the contract, Transfer -> contract hold the NFT
-        // 2. owners can still hod the NFT, and give marketplace apporval 
-        // to sell NFT for them
+        // 2. owners can still hold the NFT, and give marketplace apporval  to sell NFT for them
         IERC721 nft = IERC721(nftAddress);
         if (nft.getApproved(tokenId) != address(this)){
             revert NftMarketplace__NotApprovedForMarketplace();

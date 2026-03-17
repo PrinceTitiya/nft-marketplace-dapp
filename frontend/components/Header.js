@@ -45,7 +45,7 @@ export default function Header() {
         </Link>
         {/* RainbowKit Connect Button */}
         <ConnectButton
-          showBalance={false}
+          showBalance={true}
           accountStatus="address"
           chainStatus="icon"
         />
