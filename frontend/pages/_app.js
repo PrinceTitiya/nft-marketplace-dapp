@@ -47,7 +47,7 @@ export default function App({ Component, pageProps }) {
               name="description"
               content="NFT Marketplace to sell, buy and explore nfts"
             />
-            <link rel="icon" href="/favicon.ico" />
+            <link rel="icon" href="/favicon.ico"/>
           </Head>
 
           <Header />
