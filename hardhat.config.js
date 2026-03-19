@@ -42,9 +42,6 @@ module.exports = {
             {
                 version: "0.8.20",
             },
-            // {
-            //     version: "0.8.20",
-            // },
             {
                 version: "0.6.6",
             },
@@ -54,7 +51,7 @@ module.exports = {
         apiKey: ETHERSCAN_API_KEY,
     },
     gasReporter: {
-        enabled: true,
+        enabled: false,
         currency: "USD",
         outputFile: "gas-report.txt",
         noColors: true,
