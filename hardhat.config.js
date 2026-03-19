@@ -1,5 +1,5 @@
 require("@nomiclabs/hardhat-waffle")
-require("@nomiclabs/hardhat-etherscan")
+require("@nomicfoundation/hardhat-verify")
 require("hardhat-deploy")
 require("solidity-coverage")
 require("hardhat-gas-reporter")
@@ -42,17 +42,19 @@ module.exports = {
             {
                 version: "0.8.20",
             },
-            // {
-            //     version: "0.8.20",
-            // },
             {
                 version: "0.6.6",
             },
         ],
     },
+    sourcify: {
+  enabled: false
+},
     etherscan: {
-        apiKey: ETHERSCAN_API_KEY,
+    apiKey: {
+        sepolia: process.env.ETHERSCAN_API_KEY,
     },
+},
     gasReporter: {
         enabled: true,
         currency: "USD",
