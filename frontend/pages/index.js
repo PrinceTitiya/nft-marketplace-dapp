@@ -7,7 +7,7 @@ import { marketplaceAddress, nftAddress } from "../constants/network";
 import { ethers } from "ethers";
 import nftAbi from "../constants/BasicNft.json";
 
-/* ================= THEME ================= */
+
 const styles = {
   pageWrapper: {
     minHeight: "100vh",

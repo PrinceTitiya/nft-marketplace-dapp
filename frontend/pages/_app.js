@@ -7,7 +7,6 @@ import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rai
 import { WagmiProvider } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-
 //Header file import
 import Header from "../components/Header";
 
@@ -38,6 +37,7 @@ const config = getDefaultConfig({
 
 export default function App({ Component, pageProps }) {
   return (
+
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider modalSize="compact" theme={darkTheme()}>
@@ -49,9 +49,7 @@ export default function App({ Component, pageProps }) {
             />
             <link rel="icon" href="/favicon.ico"/>
           </Head>
-
           <Header />
-
           <Component {...pageProps} />
         </RainbowKitProvider>
       </QueryClientProvider>
