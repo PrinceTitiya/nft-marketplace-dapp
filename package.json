@@ -10,7 +10,6 @@
   },
   "devDependencies": {
     "@chainlink/contracts": "^0.4.0",
-    "@nomicfoundation/hardhat-verify": "^3.0.12",
     "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers@^0.3.0-beta.13",
     "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
@@ -33,7 +32,7 @@
     "timeout": 10000000
   },
   "dependencies": {
-    "@apollo/client": "^4.0.3",
+    "@apollo/client": "^4.1.6",
     "global": "^4.4.0"
   }
 }
