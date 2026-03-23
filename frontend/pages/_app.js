@@ -32,7 +32,7 @@ const hardhat = {
 
 const config = getDefaultConfig({
     appName: "NFT Marketplace",
-    projectId: "2ed874349d32ee3feede6626811a6784", // Demo project ID
+    projectId: process.env.NEXT_PUBLIC_PROJECT_ID, // Demo project ID
     chains: [hardhat, sepolia], // support both Hardhat + Sepolia
 })
 
