@@ -43,12 +43,6 @@ export default function Header() {
                 >
                     Sell NFT
                 </Link>
-                <Link
-                    href="/graphExample"
-                    className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-medium"
-                >
-                    Active Items
-                </Link>
                 {/* RainbowKit Connect Button */}
                 <ConnectButton showBalance={true} accountStatus="address" chainStatus="icon" />
             </div>
