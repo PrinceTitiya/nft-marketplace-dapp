@@ -15,12 +15,9 @@ The frontend is a **Next.js 13** web application that connects to the `NftMarket
 - [Components](#components)
   - [Header — `Header.js`](#header--headerjs)
 - [Constants](#constants)
-- [Smart Contract Event Listening](#smart-contract-event-listening)
-  - [How Wagmi Watches Events](#how-wagmi-watches-events)
-  - [ItemListed Event](#itemlisted-event)
-  - [ItemBought Event](#itembought-event)
-  - [ItemCanceled Event](#itemcanceled-event)
-  - [Full Event Flow Diagram](#full-event-flow-diagram)
+- [GraphQL Subgraph Integration](#graphql-subgraph-integration)
+  - [Active Listings Query (index.js)](#active-listings-query-indexjs)
+  - [Buy Flow and UI Refresh](#buy-flow-and-ui-refresh)
 - [IPFS Metadata Resolution](#ipfs-metadata-resolution)
 - [Wallet & Chain Management](#wallet--chain-management)
 - [Running the Frontend](#running-the-frontend)
@@ -36,6 +33,7 @@ The frontend is a **Next.js 13** web application that connects to the `NftMarket
 | **Wagmi** | `^2.16.9` | React hooks for reading/writing to Ethereum contracts |
 | **RainbowKit** | `^2.2.8` | Pre-built wallet connect UI (MetaMask, Coinbase, WalletConnect, etc.) |
 | **ethers.js** | `^6.15.0` | Ethereum utilities — formatting wei, signing transactions |
+| **graphql-request** | `^7.4.0` | GraphQL client for The Graph/subgraph queries |
 | **@tanstack/react-query** | `^5.85.8` | Async data caching layer required by Wagmi v2 |
 | **TailwindCSS** | `^3.0.24` | Utility-first CSS for styling |
 
@@ -46,12 +44,11 @@ Wagmi provides **typed React hooks** for every on-chain action without manually 
 | Hook | Used In | What It Does |
 |------|---------|-------------|
 | `usePublicClient` | `index.js` | Gets a read-only client to call view functions |
-| `useWatchContractEvent` | `index.js`, `sell-nft.js` | Subscribes to on-chain events in real time |
 | `useWriteContract` | `index.js` | Sends a write transaction (buy NFT) |
-| `useAccount` | `sell-nft.js`, `Header.js` | Gets the connected wallet address and connection status |
+| `useAccount` | `index.js`, `sell-nft.js`, `Header.js` | Gets the connected wallet address and connection status |
 | `useWalletClient` | `sell-nft.js` | Gets the signer-enabled wallet client for write transactions |
-| `useChainId` | `Header.js` | Gets the currently connected chain ID |
-| `useSwitchChain` | `Header.js` | Programmatically switches the wallet to a different chain |
+| `useChainId` | `index.js`, `Header.js` | Gets the currently connected chain ID |
+
 
 ---
 
@@ -68,7 +65,7 @@ frontend/
 │   └── Header.js        # Navbar with wallet connect & navigation
 │
 ├── constants/
-│   ├── network.js       # Contract addresses (marketplace + NFT)
+│   ├── networkMapping.json # Contract addresses by `chainId` (marketplace + NFT)
 │   ├── marketplace.json # NftMarketplace ABI
 │   └── BasicNft.json    # BasicNft ABI
 │
@@ -124,7 +121,7 @@ const config = getDefaultConfig({
 
 **Route:** `/`
 
-The main marketplace browse page. It fetches all active NFT listings, loads their IPFS metadata (name + image), and renders them as cards with a "Buy Now" button.
+The home page fetches the marketplace's **active listings** from the GraphQL subgraph (The Graph), then resolves each NFT's display metadata (name + image) from the NFT contract's `tokenURI()`.
 
 #### Startup Data Flow
 
@@ -132,41 +129,25 @@ The main marketplace browse page. It fetches all active NFT listings, loads thei
 Component mounts
       │
       ▼
-useEffect runs fetchListings()
-      │
-      ├─► publicClient.readContract("getTokenCounter")
-      │         │
-      │         ▼
-      │   Knows total NFTs minted (e.g. 3)
-      │
-      ├─► Loop: for tokenId 0..2
-      │     publicClient.readContract("getListing", [nftAddress, tokenId])
-      │         │
-      │         ▼
-      │     If listing.seller != address(0)  ← NFT is actively listed
-      │         → push to results[]
+useListings(page) runs (React Query)
       │
       ▼
-setListings(results)   ← renders NFT cards
+GraphQL request to SUBGRAPH_URL
+  - query: activeItems(first, skip, orderBy: tokenId)
+  - variables: first=20, skip=page*20
       │
       ▼
-Loop: for each listing
-      fetchNftMetadata(nftAddress, tokenId)
-            │
-            ├─► readContract("tokenURI", [tokenId])
-            │         → returns "ipfs://bafybeig.../0-PUG.json"
-            │
-            ├─► resolveIpfsUri(tokenUri)
-            │         → converts to "https://ipfs.io/ipfs/bafybeig.../0-PUG.json"
-            │
-            ├─► fetch(httpUrl)
-            │         → fetches JSON: { name, description, image: "ipfs://..." }
-            │
-            └─► resolveIpfsUri(metadata.image)
-                      → converts image URI to HTTPS gateway URL
+Render listings grid (seller, nftAddress, tokenId, price)
+
+For each listing
       │
       ▼
-setNftMetadata({ tokenId: { name, image, ... } })  ← renders images
+fetchNftMetadata(nftAddress, tokenId)
+  ├─► publicClient.readContract("tokenURI", [tokenId])
+  └─► resolve ipfs:// → https://ipfs.io/ipfs/
+      │
+      ▼
+Fetch metadata JSON and display `name` + `image`
 ```
 
 #### Buy Flow
@@ -183,11 +164,8 @@ writeContract({
 })
 ```
 
-On success, the smart contract:
-1. Transfers the NFT from seller → buyer (`safeTransferFrom`)
-2. Credits `msg.value` (ETH) to the seller's `s_proceeds` balance
-3. Deletes the listing from `s_listings`
-4. Emits `ItemBought` → which the frontend catches to remove the card from the UI
+After `writeContract(...)` resolves, the page calls `refetch()` to reload `activeItems` from the subgraph.
+The purchased card disappears once the subgraph has indexed the emitted `ItemBought` event.
 
 ---
 
@@ -242,8 +220,7 @@ marketplaceContract.cancelListing(cancelNftAddress, cancelTokenId)
       │
       ▼
 Toast: "NFT successfully canceled!"
-Smart contract emits: ItemCanceled
-Frontend event listener confirms cancellation in real time
+Tx confirmed; the seller status is updated after `cancelListing()` completes.
 ```
 
 #### 3. Update Listing Price
@@ -330,13 +307,21 @@ useEffect(() => {
 
 ## Constants
 
-### `constants/network.js`
+### `constants/networkMapping.json`
 
-Holds the deployed contract addresses. **Update these after each deployment:**
+Holds the deployed contract addresses keyed by `chainId` (used by both `index.js` and `sell-nft.js`). **Update these after each deployment:**
 
-```js
-export const marketplaceAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-export const nftAddress          = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+```json
+{
+  "31337": {
+    "NftMarketplace": ["0x5FbDB2315678afecb367f032d93F642f64180aa3"],
+    "BasicNft": ["0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"]
+  },
+  "11155111": {
+    "NftMarketplace": ["0x26a2AC1BB50B0Cf5A9614a5761CFf6fF19B72D73"],
+    "BasicNft": ["0xeE8b7d1229738b4F744E576b0fc13D786d6E8776"]
+  }
+}
 ```
 
 ### `constants/marketplace.json`
@@ -349,171 +334,31 @@ The ABI for `BasicNft.sol`. Used to call `tokenURI()`, `getTokenCounter()`, and 
 
 ---
 
-## Smart Contract Event Listening
+## GraphQL Subgraph Integration
 
-This is the core mechanism that keeps the UI in sync with the blockchain **without page refreshes**.
+The home page (`frontend/pages/index.js`) uses a GraphQL subgraph (The Graph) as its read-optimized backend for marketplace listings.
+Instead of scanning contract state directly in the browser, the subgraph indexes contract events and maintains the current set of `ActiveItem` records.
 
-### How Wagmi Watches Events
+### Active Listings Query (index.js)
 
-Wagmi's `useWatchContractEvent` hook opens a persistent subscription to the connected RPC node. Under the hood it uses `eth_subscribe` (WebSocket) or `eth_getLogs` polling (HTTP) to detect new log entries matching the given event signature and contract address.
+`index.js` defines:
+- `SUBGRAPH_URL`: `https://api.studio.thegraph.com/query/102524/nft-marketplace/version/latest`
+- `GET_ACTIVE_ITEMS`: a GraphQL query that requests `activeItems(first, skip, orderBy: tokenId)` (fields: `id`, `seller`, `nftAddress`, `tokenId`, `price`)
 
-```js
-useWatchContractEvent({
-  address: contractAddress,   // which contract to watch
-  abi: contractAbi,           // ABI to decode the log data
-  eventName: "EventName",     // which event to filter for
-  onLogs(logs) {
-    // called every time a matching log is emitted on-chain
-    logs.forEach(log => {
-      const { args } = log   // decoded event arguments
-      // update React state here
-    })
-  }
-})
-```
+`useListings(page)` wraps the query with React Query and paginates with:
+- `first: 20`
+- `skip: page * 20`
 
----
+The subgraph keeps `activeItems` in sync by:
+- Creating/updating `ActiveItem` when `ItemListed` fires (`handleItemListed`)
+- Removing `ActiveItem` when `ItemBought` or `ItemCanceled` fires (`handleItemBought`, `handleItemCanceled`)
 
-### `ItemListed` Event
+### Buy Flow and UI Refresh
 
-**Emitted by the contract when:**
-- A new NFT is listed via `listItem()`
-- An existing listing price is updated via `updateListing()`
+When the user clicks **"Buy Now"**, the page calls `buyItem(nftAddress, tokenId)` on `NftMarketplace` via `writeContract`.
+Afterward, the page calls `refetch()` to reload `activeItems` from the subgraph.
 
-**Solidity definition:**
-```solidity
-event ItemListed(
-    address indexed seller,
-    address indexed nftAddress,
-    uint256 indexed tokenId,
-    uint256 price
-);
-```
-
-**Frontend listener** (`index.js`):
-```js
-useWatchContractEvent({
-  address: marketplaceAddress,
-  abi: marketplaceAbi,
-  eventName: "ItemListed",
-
-  onLogs(logs) {
-    logs.forEach(async (log) => {
-      const { args } = log
-
-      const newListing = {
-        seller:     args.seller,
-        nftAddress: args.nftAddress,
-        tokenId:    args.tokenId.toString(),
-        price:      args.price.toString(),
-      }
-
-      // Add to listings only if not already present (prevent duplicates)
-      setListings((prev) => {
-        const exists = prev.some(
-          l => l.nftAddress === newListing.nftAddress &&
-               l.tokenId   === newListing.tokenId
-        )
-        return exists ? prev : [...prev, newListing]
-      })
-
-      // Also fetch IPFS metadata for the newly listed NFT
-      const meta = await fetchNftMetadata(publicClient, newListing.nftAddress, newListing.tokenId)
-      if (meta) {
-        setNftMetadata(prev => ({ ...prev, [newListing.tokenId]: meta }))
-      }
-    })
-  }
-})
-```
-
-**Effect on UI:** A new NFT card appears in the marketplace grid instantly when someone lists an NFT — no refresh needed.
-
----
-
-### `ItemBought` Event
-
-**Emitted by the contract when:**
-- A buyer successfully purchases an NFT via `buyItem()`
-
-**Solidity definition:**
-```solidity
-event ItemBought(
-    address indexed buyer,
-    address indexed nftAddress,
-    uint256 tokenId,
-    uint256 price
-);
-```
-
-**Frontend listener** (`index.js`):
-```js
-useWatchContractEvent({
-  address: marketplaceAddress,
-  abi: marketplaceAbi,
-  eventName: "ItemBought",
-
-  onLogs(logs) {
-    logs.forEach((log) => {
-      const { args } = log
-
-      const boughtTokenId = args.tokenId.toNumber()
-      const nftAddress    = args.nftAddress
-
-      // Remove the sold NFT from the listings grid
-      setListings((prev) =>
-        prev.filter(
-          l => !(l.nftAddress === nftAddress && l.tokenId === boughtTokenId)
-        )
-      )
-    })
-  }
-})
-```
-
-**Effect on UI:** The purchased NFT card disappears from the home page the moment the transaction is confirmed on-chain, for all users viewing the page.
-
----
-
-### `ItemCanceled` Event
-
-**Emitted by the contract when:**
-- A seller cancels their listing via `cancelListing()`
-
-**Solidity definition:**
-```solidity
-event ItemCanceled(
-    address indexed seller,
-    address indexed nftAddress,
-    uint256 tokenId
-);
-```
-
-**Frontend listener** (`sell-nft.js`):
-```js
-useWatchContractEvent({
-  address: marketplaceAddress,
-  abi: marketplaceAbi,
-  eventName: "ItemCanceled",
-
-  onLogs(logs) {
-    logs.forEach((log) => {
-      const { args } = log
-
-      // Only react if this cancellation was for our address and token
-      if (
-        args.seller.toLowerCase()     === address?.toLowerCase()    &&
-        args.nftAddress.toLowerCase() === cancelNftAddress.toLowerCase() &&
-        args.tokenId.toString()       === cancelTokenId
-      ) {
-        setStatus(`Listing for Token #${args.tokenId} canceled successfully`)
-      }
-    })
-  }
-})
-```
-
-**Effect on UI:** The seller sees a confirmation status message specific to their token ID, confirming the on-chain cancellation.
+Because the subgraph indexes events asynchronously, the UI may update slightly after the transaction is confirmed.
 
 ---
 
@@ -548,14 +393,12 @@ async function fetchNftMetadata(publicClient, nftAddr, tokenId) {
   // 3. Fetch the JSON metadata
   const response = await fetch(httpUrl)
   const metadata = await response.json()
-  // metadata = { name: "PUG", description: "...", image: "ipfs://..." }
+  // metadata = { name: "PUG", image: "ipfs://..." }
 
   // 4. Also convert the image URI
   return {
-    name:        metadata.name,
-    description: metadata.description,
-    image:       resolveIpfsUri(metadata.image),
-    attributes:  metadata.attributes || [],
+    name: metadata.name,
+    image: resolveIpfsUri(metadata.image),
   }
 }
 ```
@@ -591,8 +434,11 @@ yarn install
 yarn dev
 ```
 
+Create `frontend/.env.local` with at least:
+- `NEXT_PUBLIC_PROJECT_ID` (required by RainbowKit)
+
 Open [http://localhost:3000](http://localhost:3000).
 
-Make sure the contracts are deployed and `constants/network.js` has the correct addresses before starting the frontend.
+Make sure the contracts are deployed and `constants/networkMapping.json` has the correct deployed addresses (by chainId) before starting the frontend.
 
 > For local development: run `npx hardhat node` and `npx hardhat deploy --network localhost` from the **project root** first.
