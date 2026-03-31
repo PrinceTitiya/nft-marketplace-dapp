@@ -1,27 +1,15 @@
 "use client"
-import { useState, useEffect } from "react"
-import {
-    usePublicClient,
-    useWatchContractEvent,
-    useWriteContract,
-    useAccount,
-    useChainId,
-} from "wagmi"
+
+import { useQuery } from "@tanstack/react-query"
+import { gql, request } from "graphql-request"
+import { useAccount, useWriteContract, usePublicClient, useSwitchChain } from "wagmi"
 import marketplaceAbi from "../constants/Marketplace.json"
 import networkMapping from "../constants/networkMapping.json"
+import { useChainId } from "wagmi"
 import { ethers } from "ethers"
+import { useEffect, useState } from "react"
 
-const erc721Abi = [
-    {
-        name: "tokenURI",
-        type: "function",
-        stateMutability: "view",
-        inputs: [{ name: "tokenId", type: "uint256" }],
-        outputs: [{ type: "string" }],
-    },
-]
-
-/* ================= STYLES ================= */
+// ----------------- Style -------------------- //
 const styles = {
     pageWrapper: {
         minHeight: "100vh",
@@ -63,6 +51,7 @@ const styles = {
         backdropFilter: "blur(18px)",
         borderRadius: "18px",
         padding: "16px",
+        transition: "0.25s",
     },
     img: {
         width: "100%",
@@ -106,6 +95,10 @@ const styles = {
         fontWeight: "600",
         cursor: "pointer",
     },
+    btnDisabled: {
+        opacity: 0.5,
+        cursor: "not-allowed",
+    },
     badge: {
         position: "absolute",
         top: "8px",
@@ -118,11 +111,45 @@ const styles = {
     },
 }
 
-/* ================= HELPERS ================= */
-function resolveIpfsUri(uri) {
-    if (!uri) return ""
-    return uri.startsWith("ipfs://") ? uri.replace("ipfs://", "https://ipfs.io/ipfs/") : uri
+// Creating a query for active listing
+const GET_ACTIVE_ITEMS = gql`
+    query GetActiveItems($first: Int!, $skip: Int!) {
+        activeItems(first: $first, skip: $skip, orderBy: tokenId) {
+            id
+            seller
+            nftAddress
+            tokenId
+            price
+        }
+    }
+`
+
+const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/102524/nft-marketplace/version/latest"
+
+const metadataCache = {}
+
+function useListings(page = 0) {
+    return useQuery({
+        queryKey: ["activeItems", page],
+        queryFn: async () => {
+            const data = await request(SUBGRAPH_URL, GET_ACTIVE_ITEMS, {
+                first: 20,
+                skip: page * 20,
+            })
+            return data.activeItems
+        },
+    })
 }
+
+const erc721Abi = [
+    {
+        name: "tokenURI",
+        type: "function",
+        stateMutability: "view",
+        inputs: [{ name: "tokenId", type: "uint256" }],
+        outputs: [{ type: "string" }],
+    },
+]
 
 async function fetchNftMetadata(publicClient, nftAddr, tokenId) {
     try {
@@ -133,137 +160,80 @@ async function fetchNftMetadata(publicClient, nftAddr, tokenId) {
             args: [BigInt(tokenId)],
         })
 
-        const res = await fetch(resolveIpfsUri(tokenUri))
+        const url = tokenUri.startsWith("ipfs://")
+            ? tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/")
+            : tokenUri
+
+        const res = await fetch(url)
         const metadata = await res.json()
 
         return {
             name: metadata.name,
-            image: resolveIpfsUri(metadata.image),
+            image: metadata.image?.startsWith("ipfs://")
+                ? metadata.image.replace("ipfs://", "https://ipfs.io/ipfs/")
+                : metadata.image,
         }
-    } catch {
-        return null
+    } catch (err) {
+        console.error(`Metadata fetch failed for ${nftAddr}-${tokenId}`, err)
+        return {
+            name: `#${tokenId}`,
+            image: null,
+        }
     }
 }
 
-/* ================= COMPONENT ================= */
-export default function Home() {
-    const [listings, setListings] = useState([])
-    const [nftMetadata, setNftMetadata] = useState({})
+export default function GraphMarketplace() {
+    const [page, setPage] = useState(0)
+    const { data: listings, status, refetch } = useListings(page)
+    const [metadata, setMetadata] = useState({})
 
-    const publicClient = usePublicClient()
-    const { address } = useAccount()
+    const { switchChain } = useSwitchChain()
+    const { address, isConnected } = useAccount()
     const { writeContract } = useWriteContract()
     const chainId = useChainId()
+    const publicClient = usePublicClient()
 
-    const marketplaceAddress = networkMapping[chainId]?.NftMarketplace?.[0] ?? null
+    const marketplaceAddress = networkMapping[chainId]?.NftMarketplace?.[0]
+    const SEPOLIA_CHAIN_ID = 11155111
 
-    /* FETCH LISTINGS */
+    // fetch metadata
     useEffect(() => {
-        if (!marketplaceAddress || !publicClient) return
+        if (!listings || !publicClient) return
 
-        async function fetchListings() {
-            const logs = await publicClient.getLogs({
-                address: marketplaceAddress,
-
-                event: {
-                    type: "event",
-                    name: "ItemListed",
-                    inputs: [
-                        { type: "address", name: "seller", indexed: true },
-                        { type: "address", name: "nftAddress", indexed: true },
-                        { type: "uint256", name: "tokenId", indexed: true },
-                        { type: "uint256", name: "price" },
-                    ],
-                },
-                fromBlock: 10499687n, // 10484314
-                toBlock: 10499689n,
-            })
-
-            const activeListings = []
-
-            for (const log of logs) {
-                const { seller, nftAddress, tokenId, price } = log.args
-
-                const listing = await publicClient.readContract({
-                    address: marketplaceAddress,
-                    abi: marketplaceAbi,
-                    functionName: "getListing",
-                    args: [nftAddress, tokenId],
-                })
-
-                if (listing.seller !== ethers.ZeroAddress) {
-                    activeListings.push({
-                        seller,
-                        nftAddress,
-                        tokenId: tokenId.toString(),
-                        price: price.toString(),
-                    })
-                }
-            }
-            setListings(activeListings)
-
-            // fetch metadata
+        async function loadMetadata() {
             const metaMap = {}
-            for (const item of activeListings) {
-                const meta = await fetchNftMetadata(publicClient, item.nftAddress, item.tokenId)
-                if (meta) metaMap[`${item.nftAddress}-${item.tokenId}`] = meta
-            }
-            setNftMetadata(metaMap)
-        }
-        fetchListings()
-    }, [marketplaceAddress, publicClient, chainId])
 
-    /* EVENTS */
-    useWatchContractEvent({
-        address: marketplaceAddress,
-        chainId,
-        abi: marketplaceAbi,
-        eventName: "ItemListed",
-        enabled: !!marketplaceAddress,
-        onLogs(logs) {
-            logs.forEach((log) => {
-                if (!log.args) return
+            await Promise.all(
+                listings.map(async (item) => {
+                    const key = `${item.nftAddress}-${item.tokenId}`
 
-                const newListing = {
-                    seller: log.args.seller,
-                    nftAddress: log.args.nftAddress,
-                    tokenId: log.args.tokenId.toString(),
-                    price: log.args.price.toString(),
-                }
+                    // check cache first
+                    if (metadataCache[key]) {
+                        metaMap[key] = metadataCache[key]
+                        return
+                    }
 
-                setListings((prev) => {
-                    const exists = prev.some(
-                        (l) =>
-                            l.nftAddress === newListing.nftAddress &&
-                            l.tokenId === newListing.tokenId
+                    // Fetch if not cached
+                    const meta = await fetchNftMetadata(
+                        publicClient,
+                        item.nftAddress,
+                        item.tokenId
                     )
 
-                    if (exists) return prev
-                    return [...prev, newListing]
+                    if (meta) {
+                        metadataCache[key] = meta
+                        metaMap[key] = meta
+                    }
                 })
-            })
-        },
-    })
+            )
+            setMetadata(metaMap)
+        }
+        loadMetadata()
+    }, [listings, publicClient])
 
-    useWatchContractEvent({
-        address: marketplaceAddress,
-        chainId,
-        abi: marketplaceAbi,
-        eventName: "ItemBought",
-        enabled: !!marketplaceAddress,
-        onLogs(logs) {
-            logs.forEach((log) => {
-                if (!log.args) return
-
-                const boughtTokenId = log.args.tokenId.toString()
-                const nftAddr = log.args.nftAddress
-
-                setListings((prev) =>
-                    prev.filter((l) => !(l.nftAddress === nftAddr && l.tokenId === boughtTokenId))
-                )
-            })
-        },
-    })
+    if (isConnected && chainId !== SEPOLIA_CHAIN_ID) {
+        return <div>Wrong Network UI...</div>
+    }
 
     const handleBuy = async (listing) => {
         await writeContract({
@@ -273,11 +243,11 @@ export default function Home() {
             args: [listing.nftAddress, listing.tokenId],
             value: listing.price,
         })
+        refetch() // refreshes listings after buying item
     }
 
-    if (!marketplaceAddress) {
-        return <p style={{ color: "#fff" }}>Unsupported Network</p>
-    }
+    if (status === "pending") return <p>Loading....</p>
+    if (status === "error") return <p>Error Loading data</p>
 
     return (
         <div style={styles.pageWrapper}>
@@ -289,7 +259,7 @@ export default function Home() {
             ) : (
                 <div style={styles.grid}>
                     {listings.map((listing, i) => {
-                        const meta = nftMetadata[`${listing.nftAddress}-${listing.tokenId}`]
+                        const meta = metadata[`${listing.nftAddress}-${listing.tokenId}`]
 
                         return (
                             <div key={i} style={styles.card}>
@@ -301,7 +271,8 @@ export default function Home() {
                                     )}
 
                                     {address &&
-                                        listing.seller.toLowerCase() === address.toLowerCase() && (
+                                        listing.seller?.toLowerCase() ===
+                                            address.toLowerCase() && (
                                             <span style={styles.badge}>OWNED</span>
                                         )}
                                 </div>
@@ -312,7 +283,14 @@ export default function Home() {
 
                                 <p style={styles.price}>{ethers.formatEther(listing.price)} ETH</p>
 
-                                <button style={styles.btn} onClick={() => handleBuy(listing)}>
+                                <button
+                                    style={{
+                                        ...styles.btn,
+                                        ...(!isConnected ? styles.btnDisabled : {}),
+                                    }}
+                                    onClick={() => handleBuy(listing)}
+                                    disabled={!isConnected}
+                                >
                                     Buy Now
                                 </button>
                             </div>

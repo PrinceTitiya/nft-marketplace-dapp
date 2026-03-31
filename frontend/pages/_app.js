@@ -4,7 +4,7 @@ import "@rainbow-me/rainbowkit/styles.css"
 
 // wagmi + rainbow-kit imports
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rainbowkit"
-import { WagmiProvider, http } from "wagmi"
+import { WagmiProvider } from "wagmi"
 import { sepolia } from "wagmi/chains"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
@@ -32,12 +32,8 @@ const hardhat = {
 
 const config = getDefaultConfig({
     appName: "NFT Marketplace",
-    projectId: "2ed874349d32ee3feede6626811a6784",
-    chains: [hardhat, sepolia],
-    transports: {
-        [hardhat.id]: http("http://127.0.0.1:8545"),
-        [sepolia.id]: http(process.env.NEXT_PUBLIC_SEPOLIA_URL),
-    },
+    projectId: process.env.NEXT_PUBLIC_PROJECT_ID, //  project ID
+    chains: [sepolia], // support sepolia, hardhat can be added
 })
 
 export default function App({ Component, pageProps }) {

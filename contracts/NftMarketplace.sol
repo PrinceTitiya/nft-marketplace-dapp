@@ -15,14 +15,12 @@ error NftMarketplace__TransferFailed();
 
 contract NftMarketplace is ReentrancyGuard{
 
-    struct Listing{   //approve
+    struct Listing{   
         uint256 price;
         address seller;
     }
 
-    //////////////
     //  Events  //
-    //////////////
     event ItemListed(address indexed seller, address indexed nftAddress, uint256 indexed tokenId, uint256 price);
     event ItemBought(address indexed buyer,address indexed nftAddress,uint256 tokenId, uint256 price);
     event ItemCanceled(address indexed seller,address indexed nftAddress,uint256 tokenId);
@@ -33,9 +31,8 @@ contract NftMarketplace is ReentrancyGuard{
     //seller address -> amount earned
     mapping(address=>uint256) private s_proceeds;
 
-    /////////////////
+
     //  modifiers //
-    ///////////////
 
     //making sure we don't relist the NFT which are already listed
     modifier notListed(address nftAddress,uint256 tokenId, address owner){
