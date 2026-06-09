@@ -3,286 +3,11 @@
 import { useState, useEffect, useRef } from "react"
 import { useAccount, useWalletClient } from "wagmi"
 import { ethers } from "ethers"
-
-// Importing ABIs
 import nftAbi from "../constants/BasicNft.json"
 import marketplaceAbi from "../constants/Marketplace.json"
 import networkMapping from "../constants/networkMapping.json"
 import { useChainId } from "wagmi"
 
-const styles = {
-    pageWrapper: {
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #0f0c29 0%, #1a1040 40%, #0d1b3e 70%, #0c0c1e 100%)",
-        position: "relative",
-        overflow: "hidden",
-        paddingBottom: "60px",
-    },
-
-    orb1: {
-        position: "fixed",
-        top: "-120px",
-        left: "-120px",
-        width: "500px",
-        height: "500px",
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)",
-        filter: "blur(60px)",
-        animation: "floatOrb1 12s ease-in-out infinite",
-        pointerEvents: "none",
-        zIndex: 0,
-    },
-    orb2: {
-        position: "fixed",
-        bottom: "-100px",
-        right: "-100px",
-        width: "460px",
-        height: "460px",
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%)",
-        filter: "blur(70px)",
-        animation: "floatOrb2 14s ease-in-out infinite",
-        pointerEvents: "none",
-        zIndex: 0,
-    },
-    orb3: {
-        position: "fixed",
-        top: "40%",
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: "380px",
-        height: "380px",
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(6,182,212,0.18) 0%, transparent 70%)",
-        filter: "blur(80px)",
-        animation: "floatOrb3 18s ease-in-out infinite",
-        pointerEvents: "none",
-        zIndex: 0,
-    },
-
-    content: {
-        position: "relative",
-        zIndex: 1,
-        maxWidth: "960px",
-        margin: "0 auto",
-        padding: "40px 20px",
-    },
-
-    heroTitle: {
-        fontSize: "2.6rem",
-        fontWeight: "800",
-        letterSpacing: "-0.5px",
-        background: "linear-gradient(90deg, #a78bfa, #818cf8, #38bdf8)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        backgroundClip: "text",
-        marginBottom: "6px",
-    },
-    heroSub: {
-        color: "#94a3b8",
-        fontSize: "1rem",
-        marginBottom: "40px",
-    },
-
-    card: {
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        backdropFilter: "blur(18px)",
-        WebkitBackdropFilter: "blur(18px)",
-        borderRadius: "20px",
-        padding: "28px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)",
-    },
-
-    sectionTitle: {
-        fontSize: "1.25rem",
-        fontWeight: "700",
-        color: "#e2e8f0",
-        marginBottom: "20px",
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-    },
-    sectionIcon: {
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "32px",
-        height: "32px",
-        borderRadius: "8px",
-        fontSize: "1rem",
-    },
-
-    /* Input field */
-    input: {
-        width: "100%",
-        padding: "11px 14px",
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: "10px",
-        color: "#e2e8f0",
-        fontSize: "0.9rem",
-        outline: "none",
-        marginBottom: "12px",
-        transition: "border-color 0.2s, box-shadow 0.2s",
-        boxSizing: "border-box",
-    },
-
-    /* Buttons */
-    btnIndigo: {
-        width: "100%",
-        padding: "11px 0",
-        background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-        color: "#fff",
-        fontWeight: "600",
-        fontSize: "0.95rem",
-        border: "none",
-        borderRadius: "10px",
-        cursor: "pointer",
-        transition: "opacity 0.2s, transform 0.15s, box-shadow 0.2s",
-        boxShadow: "0 4px 20px rgba(99,102,241,0.45)",
-    },
-    btnRed: {
-        width: "100%",
-        padding: "11px 0",
-        background: "linear-gradient(135deg, #ef4444, #b91c1c)",
-        color: "#fff",
-        fontWeight: "600",
-        fontSize: "0.95rem",
-        border: "none",
-        borderRadius: "10px",
-        cursor: "pointer",
-        transition: "opacity 0.2s, transform 0.15s, box-shadow 0.2s",
-        boxShadow: "0 4px 20px rgba(239,68,68,0.4)",
-    },
-    btnGreen: {
-        width: "100%",
-        padding: "11px 0",
-        background: "linear-gradient(135deg, #22c55e, #15803d)",
-        color: "#fff",
-        fontWeight: "600",
-        fontSize: "0.95rem",
-        border: "none",
-        borderRadius: "10px",
-        cursor: "pointer",
-        transition: "opacity 0.2s, transform 0.15s, box-shadow 0.2s",
-        boxShadow: "0 4px 20px rgba(34,197,94,0.4)",
-    },
-    btnCyan: {
-        padding: "10px 22px",
-        background: "linear-gradient(135deg, #0891b2, #0e7490)",
-        color: "#fff",
-        fontWeight: "600",
-        fontSize: "0.9rem",
-        border: "none",
-        borderRadius: "10px",
-        cursor: "pointer",
-        transition: "opacity 0.2s, transform 0.15s, box-shadow 0.2s",
-        boxShadow: "0 4px 16px rgba(8,145,178,0.45)",
-    },
-    btnDisabled: {
-        opacity: 0.45,
-        cursor: "not-allowed",
-    },
-
-    /* Proceeds balance chip */
-    balanceChip: {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "8px",
-        background: "rgba(99,102,241,0.15)",
-        border: "1px solid rgba(99,102,241,0.35)",
-        borderRadius: "999px",
-        padding: "6px 16px",
-        color: "#a5b4fc",
-        fontWeight: "600",
-        fontSize: "0.95rem",
-        marginBottom: "16px",
-    },
-
-    /* Listing info box */
-    infoBox: {
-        background: "rgba(34,197,94,0.07)",
-        border: "1px solid rgba(34,197,94,0.2)",
-        borderRadius: "12px",
-        padding: "14px 16px",
-        marginBottom: "14px",
-        color: "#86efac",
-        fontSize: "0.9rem",
-        lineHeight: "1.7",
-    },
-
-    /* Toast */
-    toastBase: {
-        position: "fixed",
-        top: "80px",
-        right: "20px",
-        zIndex: 9999,
-        minWidth: "260px",
-        maxWidth: "360px",
-        padding: "14px 18px",
-        borderRadius: "14px",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: "10px",
-        fontSize: "0.88rem",
-        fontWeight: "500",
-        boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
-        animation: "slideInToast 0.3s ease",
-    },
-    toastSuccess: {
-        background: "rgba(20,83,45,0.85)",
-        borderWidth: "1px",
-        borderStyle: "solid",
-        borderColor: "rgba(34,197,94,0.4)",
-        color: "#86efac",
-    },
-    toastError: {
-        background: "rgba(127,29,29,0.85)",
-        border: "1px solid rgba(239,68,68,0.4)",
-        color: "#fca5a5",
-    },
-    toastInfo: {
-        background: "rgba(30,27,75,0.9)",
-        border: "1px solid rgba(99,102,241,0.4)",
-        color: "#c7d2fe",
-    },
-
-    /* Modal */
-    modalOverlay: {
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.7)",
-        backdropFilter: "blur(6px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-    },
-    modalBox: {
-        background: "linear-gradient(135deg, #1e1b4b, #1e293b)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: "20px",
-        padding: "32px",
-        maxWidth: "380px",
-        width: "90%",
-        textAlign: "center",
-        boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
-    },
-
-    /* 2-col grid */
-    grid2: {
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "24px",
-        marginBottom: "24px",
-    },
-}
-
-/* ═══════════════════════════════════════════════════════════════════ */
 export default function SellNft() {
     const chainId = useChainId()
     const { address, isConnected } = useAccount()
@@ -295,8 +20,8 @@ export default function SellNft() {
     const [nftAddress, setNftAddress] = useState("")
     const [tokenId, setTokenId] = useState("")
     const [price, setPrice] = useState("")
-
     const [loading, setLoading] = useState(false)
+
     const [cancelNftAddress, setCancelNftAddress] = useState("")
     const [cancelTokenId, setCancelTokenId] = useState("")
     const [showConfirmCancel, setShowConfirmCancel] = useState(false)
@@ -311,150 +36,99 @@ export default function SellNft() {
     const [toast, setToast] = useState({ message: "", type: "info", visible: false })
     const toastTimerRef = useRef(null)
 
-    // Input focus glow
-    const [focusedInput, setFocusedInput] = useState(null)
-
     const marketplaceAddress = networkMapping[chainId]?.NftMarketplace?.[0]
-
-    if (!marketplaceAddress) {
-        return (
-            <p style={{ color: "#fff", textAlign: "center" }}>
-                Marketplace not deployed on this network
-            </p>
-        )
-    }
-
     const SEPOLIA_CHAIN_ID = 11155111
 
-    if (isConnected && chainId !== SEPOLIA_CHAIN_ID) {
-        return (
-            <p style={{ color: "#fff", textAlign: "center" }}>Please switch to Sepolia Network</p>
-        )
-    }
-
-    const inputStyle = (id) => ({
-        ...styles.input,
-        ...(focusedInput === id
-            ? {
-                  border: "1px solid rgba(99,102,241,0.7)",
-                  boxShadow: "0 0 0 3px rgba(99,102,241,0.2)",
-              }
-            : {}),
-    })
+    useEffect(() => setMounted(true), [])
 
     const showToast = (message, type = "info", duration = 4500) => {
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
         setToast({ message, type, visible: true })
-        toastTimerRef.current = setTimeout(() => {
-            setToast((prev) => ({ ...prev, visible: false }))
-        }, duration)
+        toastTimerRef.current = setTimeout(
+            () => setToast((p) => ({ ...p, visible: false })),
+            duration
+        )
     }
 
-    const inferTypeFromMessage = (msg) => {
+    const inferType = (msg) => {
         if (!msg) return "info"
-        if (msg.includes("✅")) return "success"
+        if (msg.includes("✅") || /success/i.test(msg)) return "success"
         if (msg.includes("❌") || /error/i.test(msg)) return "error"
         return "info"
     }
 
     useEffect(() => {
-        if (status && typeof status === "string") {
-            showToast(status, inferTypeFromMessage(status))
-        }
+        if (status) showToast(status, inferType(status))
     }, [status])
 
-    // get the marketplace contract
-    async function getMarketplaceContract(walletClient, withSigner = true) {
-        const provider = new ethers.BrowserProvider(walletClient)
-
+    async function getMarketplaceContract(wc, withSigner = true) {
+        const provider = new ethers.BrowserProvider(wc)
         if (withSigner) {
             const signer = await provider.getSigner()
             return new ethers.Contract(marketplaceAddress, marketplaceAbi, signer)
         }
-
         return new ethers.Contract(marketplaceAddress, marketplaceAbi, provider)
     }
 
-    // get the NFT contract
-    async function getNftContract(walletClient, nftAddress) {
-        const provider = new ethers.BrowserProvider(walletClient)
+    async function getNftContract(wc, addr) {
+        const provider = new ethers.BrowserProvider(wc)
         const signer = await provider.getSigner()
-        return new ethers.Contract(nftAddress, nftAbi, signer)
+        return new ethers.Contract(addr, nftAbi, signer)
     }
 
-    /* ── Fetch proceeds ── */
     const fetchProceeds = async () => {
         if (!walletClient || !address) return
         try {
-            const marketplaceContract = await getMarketplaceContract(walletClient, true)
-            const userProceeds = await marketplaceContract.getProceeds(address)
-            setProceeds(ethers.formatEther(userProceeds))
+            const mc = await getMarketplaceContract(walletClient, true)
+            const amt = await mc.getProceeds(address)
+            setProceeds(ethers.formatEther(amt))
         } catch (err) {
-            console.error("Error fetching proceeds:", err)
+            console.error(err)
         }
     }
 
-    /* ── List NFT ── */
     const handleListItem = async () => {
         if (!walletClient) return
-
         setLoading(true)
         setTxStep("")
-
         try {
             const nftContract = await getNftContract(walletClient, nftAddress)
-            const marketplaceContract = await getMarketplaceContract(walletClient, true)
-
+            const mc = await getMarketplaceContract(walletClient, true)
             const approved = await nftContract.getApproved(tokenId)
-
             if (approved.toLowerCase() !== marketplaceAddress.toLowerCase()) {
-                setTxStep("🔐 Approving NFT...")
+                setTxStep("→ Approving NFT transfer")
                 const approveTx = await nftContract.approve(marketplaceAddress, tokenId)
                 await approveTx.wait()
             }
-
-            setTxStep("📤 Listing NFT...")
-
-            const tx = await marketplaceContract.listItem(
-                nftAddress,
-                tokenId,
-                ethers.parseEther(price)
-            )
-
+            setTxStep("→ Broadcasting listing transaction")
+            const tx = await mc.listItem(nftAddress, tokenId, ethers.parseEther(price))
             await tx.wait()
-
-            setTxStep("✅ NFT Listed Successfully!")
-
-            // optional reset
+            setTxStep("✅ NFT listed successfully")
             setNftAddress("")
             setTokenId("")
             setPrice("")
         } catch (err) {
             console.error(err)
-            setTxStep("❌ Transaction Failed")
+            setTxStep("❌ Transaction failed")
         } finally {
             setLoading(false)
         }
     }
 
-    /* ── Cancel Listing ── */
     const handleCancelListing = async () => {
         if (!walletClient) return
         try {
             setStatus("Canceling listing...")
-            const marketplaceContract = await getMarketplaceContract(walletClient, true)
-            const existingListing = await marketplaceContract.getListing(
-                cancelNftAddress,
-                cancelTokenId
-            )
-            if (existingListing.price.toString() === "0") {
+            const mc = await getMarketplaceContract(walletClient, true)
+            const existing = await mc.getListing(cancelNftAddress, cancelTokenId)
+            if (existing.price.toString() === "0") {
                 setStatus("⚠️ This NFT is not listed")
                 setShowConfirmCancel(false)
                 return
             }
-            const tx = await marketplaceContract.cancelListing(cancelNftAddress, cancelTokenId)
+            const tx = await mc.cancelListing(cancelNftAddress, cancelTokenId)
             await tx.wait()
-            setStatus("✅ NFT successfully canceled!")
+            setStatus("✅ Listing canceled successfully")
             setCancelNftAddress("")
             setCancelTokenId("")
             setShowConfirmCancel(false)
@@ -465,15 +139,14 @@ export default function SellNft() {
         }
     }
 
-    /* ── Withdraw ── */
     const handleWithdraw = async () => {
         if (!walletClient) return
         try {
-            const marketplaceContract = await getMarketplaceContract(walletClient, true)
-            setStatus("Withdrawing Proceeds...")
-            const tx = await marketplaceContract.withdrawProceeds()
+            setStatus("Processing withdrawal...")
+            const mc = await getMarketplaceContract(walletClient, true)
+            const tx = await mc.withdrawProceeds()
             await tx.wait()
-            setStatus("✅ Withdrawal Successful!")
+            setStatus("✅ Withdrawal successful")
             fetchProceeds()
         } catch (err) {
             console.error(err)
@@ -481,29 +154,21 @@ export default function SellNft() {
         }
     }
 
-    /* ── Check / Update Listing ── */
     async function checkListing() {
         if (!walletClient || !updateNftAddress || updateTokenId === "") return
         try {
-            setStatus("Checking listing...")
-            const marketplaceContract = await getMarketplaceContract(walletClient, true)
-            const listingData = await marketplaceContract.getListing(
-                updateNftAddress,
-                updateTokenId
-            )
-            if (listingData.price > 0) {
-                setListing({
-                    price: ethers.formatEther(listingData.price),
-                    seller: listingData.seller,
-                })
+            const mc = await getMarketplaceContract(walletClient, true)
+            const data = await mc.getListing(updateNftAddress, updateTokenId)
+            if (data.price > 0) {
+                setListing({ price: ethers.formatEther(data.price), seller: data.seller })
                 setStatus("")
             } else {
                 setListing(null)
-                setStatus("❌ This NFT is not listed.")
+                setStatus("❌ NFT is not listed")
             }
         } catch (err) {
             console.error(err)
-            setStatus("⚠️ Error checking listing.")
+            setStatus("⚠️ Error checking listing")
         }
     }
 
@@ -511,361 +176,262 @@ export default function SellNft() {
         if (!walletClient || !updateNftAddress || !updateTokenId || !newPrice) return
         try {
             setStatus("Updating listing...")
-            const marketplaceContract = await getMarketplaceContract(walletClient, true)
-            const tx = await marketplaceContract.updateListing(
+            const mc = await getMarketplaceContract(walletClient, true)
+            const tx = await mc.updateListing(
                 updateNftAddress,
                 updateTokenId,
                 ethers.parseEther(newPrice)
             )
             await tx.wait()
-            setStatus("✅ Listing updated successfully!")
+            setStatus("✅ Listing updated successfully")
             setListing({ ...listing, price: newPrice })
         } catch (err) {
             console.error(err)
-            setStatus(" Failed to update listing.")
+            setStatus("❌ Update failed")
         }
     }
 
-    useEffect(() => setMounted(true), [])
-    if (!mounted)
+    if (!mounted) {
         return (
-            <div
-                style={{
-                    minHeight: "100vh",
-                    background: "#0f0c29",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#6366f1",
-                    fontSize: "1.1rem",
-                }}
-            >
-                Loading...
+            <div style={S.centerWrap}>
+                <span className="mono" style={S.dimText}>
+                    LOADING...
+                </span>
             </div>
         )
+    }
 
-    const toastStyle =
+    if (!marketplaceAddress) {
+        return (
+            <div style={S.centerWrap}>
+                <p style={S.errCode}>ERR // NO_DEPLOYMENT</p>
+                <p style={S.errMsg}>Marketplace not deployed on this network.</p>
+            </div>
+        )
+    }
+
+    if (isConnected && chainId !== SEPOLIA_CHAIN_ID) {
+        return (
+            <div style={S.centerWrap}>
+                <p style={S.errCode}>ERR // WRONG_NETWORK</p>
+                <p style={S.errMsg}>Connect to Sepolia testnet to continue.</p>
+            </div>
+        )
+    }
+
+    const toastVariant =
         toast.type === "success"
-            ? styles.toastSuccess
+            ? S.toastSuccess
             : toast.type === "error"
-            ? styles.toastError
-            : styles.toastInfo
+            ? S.toastError
+            : S.toastInfo
 
     return (
         <>
-            {/* ── Keyframe animations injected via <style> ── */}
-            <style>{`
-        @keyframes floatOrb1 {
-          0%,100% { transform: translate(0,0) scale(1); }
-          33%      { transform: translate(60px,40px) scale(1.08); }
-          66%      { transform: translate(-30px,60px) scale(0.94); }
-        }
-        @keyframes floatOrb2 {
-          0%,100% { transform: translate(0,0) scale(1); }
-          40%      { transform: translate(-50px,-60px) scale(1.1); }
-          70%      { transform: translate(40px,-20px) scale(0.92); }
-        }
-        @keyframes floatOrb3 {
-          0%,100% { transform: translateX(-50%) scale(1); }
-          50%      { transform: translateX(-50%) scale(1.12) translateY(-30px); }
-        }
-        @keyframes slideInToast {
-          from { opacity:0; transform: translateX(40px); }
-          to   { opacity:1; transform: translateX(0); }
-        }
-        input::placeholder { color: rgba(148,163,184,0.55); }
-        input:focus { outline: none; }
-        button:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
-        button:active:not(:disabled) { transform: translateY(0); }
-      `}</style>
-
-            <div style={styles.pageWrapper}>
-                {/* Glowing orbs */}
-                <div style={styles.orb1} />
-                <div style={styles.orb2} />
-                <div style={styles.orb3} />
-
+            <div style={S.page}>
                 {/* Toast */}
                 {toast.visible && (
-                    <div style={{ ...styles.toastBase, ...toastStyle }}>
+                    <div style={{ ...S.toastBase, ...toastVariant }}>
                         <span>{toast.message}</span>
                         <button
                             onClick={() => setToast((p) => ({ ...p, visible: false }))}
-                            style={{
-                                background: "none",
-                                border: "none",
-                                color: "inherit",
-                                cursor: "pointer",
-                                fontSize: "1rem",
-                                lineHeight: 1,
-                            }}
+                            style={S.toastClose}
                         >
                             ✕
                         </button>
                     </div>
                 )}
 
-                <div style={styles.content}>
-                    {/* Hero heading */}
-                    <h1 style={styles.heroTitle}>NFT Manager</h1>
-                    <p style={styles.heroSub}>
-                        List, cancel, update, or withdraw proceeds from your NFTs in one place.
-                    </p>
+                <div style={S.content}>
+                    {/* Page header */}
+                    <div style={{ marginBottom: "32px" }}>
+                        <p className="mono" style={S.pageTitle}>
+                            NFT.MANAGER
+                        </p>
+                        <p style={S.pageSub}>Manage listings and proceeds on Sepolia</p>
+                    </div>
 
-                    {txStep && <p style={{ color: "#c7d2fe", marginBottom: "20px" }}>{txStep}</p>}
+                    {txStep && (
+                        <p className="mono" style={S.txStep}>
+                            {txStep}
+                        </p>
+                    )}
 
-                    {/* ── TOP GRID: List + Cancel ── */}
-                    <div
-                        style={{
-                            ...styles.grid2,
-                            ...(typeof window !== "undefined" && window.innerWidth < 640
-                                ? { gridTemplateColumns: "1fr" }
-                                : {}),
-                        }}
-                    >
-                        {/* List NFT card */}
-
-                        <div style={styles.card}>
-                            <h2 style={styles.sectionTitle}>List Your NFT</h2>
+                    {/* Row 1: List + Cancel */}
+                    <div className="grid-2">
+                        {/* List NFT */}
+                        <div className="panel">
+                            <p className="section-label">List NFT</p>
                             <input
+                                className="field"
                                 type="text"
                                 placeholder="NFT contract address"
                                 value={nftAddress}
                                 onChange={(e) => setNftAddress(e.target.value)}
-                                onFocus={() => setFocusedInput("nft-addr")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={inputStyle("nft-addr")}
                             />
                             <input
+                                className="field"
                                 type="text"
                                 placeholder="Token ID"
                                 value={tokenId}
                                 onChange={(e) => setTokenId(e.target.value)}
-                                onFocus={() => setFocusedInput("nft-tid")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={inputStyle("nft-tid")}
                             />
                             <input
+                                className="field"
                                 type="text"
-                                placeholder="Price in ETH (e.g. 0.05)"
+                                placeholder="Price in ETH"
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
-                                onFocus={() => setFocusedInput("nft-price")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={inputStyle("nft-price")}
                             />
                             <button
+                                className="btn btn-cyan btn-full"
+                                style={{ marginTop: "4px" }}
                                 onClick={handleListItem}
                                 disabled={!isConnected || loading}
-                                style={{
-                                    ...styles.btnIndigo,
-                                    ...(!isConnected || loading ? styles.btnDisabled : {}),
-                                }}
                             >
                                 {loading
-                                    ? "Processing..."
+                                    ? "PROCESSING..."
                                     : isConnected
-                                    ? "List NFT"
-                                    : "Connect Wallet to List"}
+                                    ? "LIST NFT"
+                                    : "CONNECT WALLET"}
                             </button>
                         </div>
 
-                        {/* Cancel Listing card */}
-                        <div style={styles.card}>
-                            <h2 style={styles.sectionTitle}>Cancel Listing</h2>
+                        {/* Cancel Listing */}
+                        <div className="panel">
+                            <p className="section-label">Cancel Listing</p>
                             <input
+                                className="field"
                                 type="text"
                                 placeholder="NFT contract address"
                                 value={cancelNftAddress}
                                 onChange={(e) => setCancelNftAddress(e.target.value)}
-                                onFocus={() => setFocusedInput("cancel-addr")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={inputStyle("cancel-addr")}
                             />
                             <input
+                                className="field"
                                 type="text"
                                 placeholder="Token ID"
                                 value={cancelTokenId}
                                 onChange={(e) => setCancelTokenId(e.target.value)}
-                                onFocus={() => setFocusedInput("cancel-tid")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={inputStyle("cancel-tid")}
                             />
                             <button
+                                className="btn btn-red btn-full"
+                                style={{ marginTop: "4px" }}
                                 onClick={() => {
                                     if (!cancelNftAddress || !cancelTokenId) {
-                                        setStatus(
-                                            "⚠️ Enter NFT address and Token ID before canceling"
-                                        )
+                                        setStatus("⚠️ Enter NFT address and Token ID")
                                         return
                                     }
                                     setShowConfirmCancel(true)
                                 }}
                                 disabled={!isConnected}
-                                style={{
-                                    ...styles.btnRed,
-                                    ...(!isConnected ? styles.btnDisabled : {}),
-                                }}
                             >
-                                {isConnected ? "Cancel Listing" : "Connect Wallet"}
+                                {isConnected ? "CANCEL LISTING" : "CONNECT WALLET"}
                             </button>
                         </div>
                     </div>
 
-                    {/* ── Update Listing card ── */}
-                    <div style={{ ...styles.card, marginBottom: "24px" }}>
-                        <h2 style={styles.sectionTitle}>Update Listing Price</h2>
-                        <div style={styles.grid2}>
+                    {/* Update Listing */}
+                    <div className="panel" style={{ marginBottom: "16px" }}>
+                        <p className="section-label">Update Listing Price</p>
+                        <div className="grid-2" style={{ marginBottom: "12px" }}>
                             <input
+                                className="field"
                                 type="text"
                                 placeholder="NFT contract address"
                                 value={updateNftAddress}
                                 onChange={(e) => setUpdateNftAddress(e.target.value)}
-                                onFocus={() => setFocusedInput("upd-addr")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={{ ...inputStyle("upd-addr"), marginBottom: 0 }}
+                                style={{ marginBottom: 0 }}
                             />
                             <input
+                                className="field"
                                 type="text"
                                 placeholder="Token ID"
                                 value={updateTokenId}
                                 onChange={(e) => setUpdateTokenId(e.target.value)}
-                                onFocus={() => setFocusedInput("upd-tid")}
-                                onBlur={() => setFocusedInput(null)}
-                                style={{ ...inputStyle("upd-tid"), marginBottom: 0 }}
+                                style={{ marginBottom: 0 }}
                             />
                         </div>
-                        <button
-                            onClick={checkListing}
-                            style={{
-                                ...styles.btnIndigo,
-                                marginBottom: "16px",
-                                background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                                boxShadow: "0 4px 16px rgba(245,158,11,0.35)",
-                            }}
-                        >
-                            Check Listing
+                        <button className="btn btn-ghost" onClick={checkListing}>
+                            CHECK LISTING
                         </button>
 
                         {listing && (
-                            <>
-                                <div style={styles.infoBox}>
-                                    <div>
-                                        <strong>Listed by:</strong>{" "}
-                                        <span
-                                            style={{
-                                                fontFamily: "monospace",
-                                                fontSize: "0.82rem",
-                                            }}
-                                        >
-                                            {listing.seller}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        {" "}
-                                        <strong>Current Price:</strong> {listing.price} ETH
-                                    </div>
+                            <div style={{ marginTop: "16px" }}>
+                                <div style={S.listingInfo}>
+                                    <span style={S.infoLabel}>Seller</span>
+                                    <span className="mono" style={S.infoValue}>
+                                        {listing.seller}
+                                    </span>
+                                    <span style={S.infoLabel}>Current Price</span>
+                                    <span className="mono" style={{ ...S.infoValue, color: "#a855f7" }}>
+                                        {listing.price} ETH
+                                    </span>
                                 </div>
                                 <input
+                                    className="field"
                                     type="text"
-                                    placeholder="New Price in ETH"
+                                    placeholder="New price in ETH"
                                     value={newPrice}
                                     onChange={(e) => setNewPrice(e.target.value)}
-                                    onFocus={() => setFocusedInput("new-price")}
-                                    onBlur={() => setFocusedInput(null)}
-                                    style={inputStyle("new-price")}
                                 />
-                                <button onClick={updateListing} style={styles.btnGreen}>
-                                    Update Price
+                                <button className="btn btn-green" onClick={updateListing}>
+                                    UPDATE PRICE
                                 </button>
-                            </>
+                            </div>
                         )}
                     </div>
 
-                    {/* ── Proceeds card ── */}
-                    <div style={styles.card}>
-                        <h2 style={styles.sectionTitle}>Your Proceeds</h2>
-                        {proceeds !== null && (
-                            <div style={styles.balanceChip}>
-                                <span>💰</span>
-                                <span>{proceeds} ETH</span>
-                            </div>
-                        )}
-                        {proceeds === null && (
-                            <p
-                                style={{
-                                    color: "#64748b",
-                                    fontSize: "0.88rem",
-                                    marginBottom: "16px",
-                                }}
-                            >
-                                Click "Check Balance" to see your available proceeds.
+                    {/* Proceeds */}
+                    <div className="panel">
+                        <p className="section-label">Proceeds</p>
+                        {proceeds !== null ? (
+                            <p className="mono" style={S.proceedsAmt}>
+                                {proceeds} ETH
+                            </p>
+                        ) : (
+                            <p style={S.proceedsEmpty}>
+                                Run check balance to view your available proceeds.
                             </p>
                         )}
-                        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                            <button onClick={fetchProceeds} style={styles.btnCyan}>
-                                Check Balance
+                        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                            <button className="btn btn-ghost" onClick={fetchProceeds}>
+                                CHECK BALANCE
                             </button>
                             <button
+                                className="btn btn-cyan"
                                 onClick={handleWithdraw}
                                 disabled={!proceeds || parseFloat(proceeds) === 0}
-                                style={{
-                                    ...styles.btnIndigo,
-                                    width: "auto",
-                                    padding: "10px 22px",
-                                    ...(!proceeds || parseFloat(proceeds) === 0
-                                        ? styles.btnDisabled
-                                        : {}),
-                                }}
                             >
-                                Withdraw
+                                WITHDRAW
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ── Confirmation Modal ── */}
+            {/* Confirmation Modal */}
             {showConfirmCancel && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modalBox}>
-                        <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>⚠️</div>
-                        <p
-                            style={{
-                                color: "#e2e8f0",
-                                fontSize: "1.05rem",
-                                fontWeight: "600",
-                                marginBottom: "8px",
-                            }}
-                        >
-                            Cancel this listing?
+                <div style={S.modalOverlay}>
+                    <div style={S.modalBox}>
+                        <p style={S.modalTitle} className="mono">
+                            CONFIRM CANCELLATION
                         </p>
-                        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginBottom: "24px" }}>
-                            This will remove your NFT from the marketplace. You can re-list it
-                            anytime.
+                        <p style={S.modalBody}>
+                            Delist token #{cancelTokenId} from the marketplace?
                         </p>
-                        <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-                            <button
-                                onClick={handleCancelListing}
-                                style={{ ...styles.btnRed, width: "auto", padding: "10px 28px" }}
-                            >
-                                Yes, Cancel
+                        <p style={S.modalSub}>
+                            This removes the listing. You may re-list at any time.
+                        </p>
+                        <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+                            <button className="btn btn-red" onClick={handleCancelListing}>
+                                YES, CANCEL
                             </button>
                             <button
+                                className="btn btn-ghost"
                                 onClick={() => setShowConfirmCancel(false)}
-                                style={{
-                                    padding: "10px 28px",
-                                    background: "rgba(255,255,255,0.08)",
-                                    borderWidth: "1px",
-                                    borderStyle: "solid",
-                                    borderColor: "rgba(255,255,255,0.15)",
-                                    borderRadius: "10px",
-                                    color: "#cbd5e1",
-                                    fontWeight: "600",
-                                    cursor: "pointer",
-                                }}
                             >
-                                Go Back
+                                GO BACK
                             </button>
                         </div>
                     </div>
@@ -873,4 +439,199 @@ export default function SellNft() {
             )}
         </>
     )
+}
+
+const S = {
+    page: {
+        position: "relative",
+        zIndex: 1,
+        minHeight: "calc(100vh - 64px)",
+    },
+    content: {
+        maxWidth: "880px",
+        margin: "0 auto",
+        padding: "40px 24px 64px",
+    },
+    pageTitle: {
+        fontSize: "0.9rem",
+        fontWeight: "600",
+        letterSpacing: "0.14em",
+        color: "#e6edf3",
+        marginBottom: "4px",
+    },
+    pageSub: {
+        fontSize: "0.78rem",
+        color: "#9a9a9a",
+        letterSpacing: "0.04em",
+    },
+    txStep: {
+        fontSize: "0.75rem",
+        color: "#d8b4fe",
+        letterSpacing: "0.06em",
+        marginBottom: "20px",
+    },
+    listingInfo: {
+        background: "rgba(168, 85, 247, 0.06)",
+        border: "1px solid rgba(168, 85, 247, 0.18)",
+        borderRadius: "8px",
+        padding: "14px 16px",
+        marginBottom: "14px",
+        display: "grid",
+        gridTemplateColumns: "auto 1fr",
+        gap: "6px 16px",
+        alignItems: "center",
+    },
+    infoLabel: {
+        fontSize: "0.65rem",
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        color: "#6c7589",
+    },
+    infoValue: {
+        fontSize: "0.78rem",
+        color: "#ffffff",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    proceedsAmt: {
+        fontSize: "2rem",
+        fontWeight: "700",
+        background: "linear-gradient(90deg, #a855f7, #d8b4fe, #ffffff)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+        letterSpacing: "-0.02em",
+        marginBottom: "16px",
+    },
+    proceedsEmpty: {
+        fontSize: "0.78rem",
+        color: "#6c7589",
+        marginBottom: "16px",
+        letterSpacing: "0.03em",
+    },
+    /* Toast */
+    toastBase: {
+        position: "fixed",
+        top: "76px",
+        right: "20px",
+        zIndex: 9999,
+        minWidth: "260px",
+        maxWidth: "400px",
+        padding: "13px 16px",
+        borderRadius: "10px",
+        background: "rgba(5, 5, 10, 0.96)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px",
+        fontSize: "0.75rem",
+        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+        letterSpacing: "0.04em",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.6)",
+        animation: "slideInToast 0.25s ease",
+    },
+    toastSuccess: {
+        borderTop: "1px solid rgba(63, 185, 80, 0.2)",
+        borderRight: "1px solid rgba(63, 185, 80, 0.2)",
+        borderBottom: "1px solid rgba(63, 185, 80, 0.2)",
+        borderLeft: "3px solid #3fb950",
+        color: "#3fb950",
+    },
+    toastError: {
+        borderTop: "1px solid rgba(248, 81, 73, 0.2)",
+        borderRight: "1px solid rgba(248, 81, 73, 0.2)",
+        borderBottom: "1px solid rgba(248, 81, 73, 0.2)",
+        borderLeft: "3px solid #f85149",
+        color: "#f85149",
+    },
+    toastInfo: {
+        borderTop: "1px solid rgba(168, 85, 247, 0.2)",
+        borderRight: "1px solid rgba(168, 85, 247, 0.2)",
+        borderBottom: "1px solid rgba(168, 85, 247, 0.2)",
+        borderLeft: "3px solid #a855f7",
+        color: "#d8b4fe",
+    },
+    toastClose: {
+        background: "none",
+        border: "none",
+        color: "inherit",
+        cursor: "pointer",
+        fontSize: "0.82rem",
+        opacity: 0.55,
+        lineHeight: 1,
+        flexShrink: 0,
+    },
+    /* Modal */
+    modalOverlay: {
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0, 0, 0, 0.72)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+    },
+    modalBox: {
+        background: "#0e0b1a",
+        border: "1px solid rgba(168, 85, 247, 0.25)",
+        borderRadius: "14px",
+        padding: "32px",
+        maxWidth: "380px",
+        width: "90%",
+        textAlign: "center",
+        boxShadow: "0 24px 64px rgba(0, 0, 0, 0.7), 0 0 40px rgba(168, 85, 247, 0.08)",
+    },
+    modalTitle: {
+        fontSize: "0.65rem",
+        fontWeight: "700",
+        color: "#f85149",
+        letterSpacing: "0.14em",
+        borderLeft: "2px solid #f85149",
+        paddingLeft: "10px",
+        textAlign: "left",
+        marginBottom: "16px",
+    },
+    modalBody: {
+        color: "#ffffff",
+        fontSize: "0.92rem",
+        fontWeight: "600",
+        marginBottom: "8px",
+    },
+    modalSub: {
+        color: "#9a9a9a",
+        fontSize: "0.8rem",
+        marginBottom: "24px",
+        lineHeight: "1.65",
+    },
+    /* Error / loading states */
+    centerWrap: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "calc(100vh - 64px)",
+        gap: "8px",
+        position: "relative",
+        zIndex: 1,
+    },
+    dimText: {
+        fontSize: "0.7rem",
+        letterSpacing: "0.16em",
+        color: "#6c7589",
+    },
+    errCode: {
+        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+        fontSize: "0.68rem",
+        letterSpacing: "0.15em",
+        color: "#f85149",
+    },
+    errMsg: {
+        fontSize: "0.82rem",
+        color: "#8b949e",
+    },
 }

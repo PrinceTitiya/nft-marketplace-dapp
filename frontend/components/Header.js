@@ -1,8 +1,60 @@
-// components/Header.js
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Link from "next/link"
 import { useEffect } from "react"
 import { useAccount, useChainId, useSwitchChain } from "wagmi"
+
+const S = {
+    nav: {
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "#000000",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        padding: "0 28px",
+        height: "64px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+    },
+    logo: {
+        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+        fontSize: "1.25rem",
+        fontWeight: "700",
+        letterSpacing: "0.06em",
+        textDecoration: "none",
+        display: "flex",
+        alignItems: "center",
+        gap: "4px",
+        background: "linear-gradient(90deg, #a855f7 0%, #d8b4fe 50%, #ffffff 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+    },
+    bracket: {
+        background: "linear-gradient(90deg, #a855f7, #d8b4fe)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+        opacity: 0.7,
+    },
+    links: {
+        display: "flex",
+        alignItems: "center",
+        gap: "28px",
+    },
+    link: {
+        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+        fontSize: "0.68rem",
+        fontWeight: "600",
+        letterSpacing: "0.12em",
+        textTransform: "uppercase",
+        textDecoration: "none",
+        background: "linear-gradient(90deg, #a855f7 0%, #d8b4fe 50%, #ffffff 100%)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+    },
+}
 
 export default function Header() {
     const { isConnected } = useAccount()
@@ -11,11 +63,7 @@ export default function Header() {
 
     useEffect(() => {
         if (!isConnected) return
-
-        // Allow Sepolia (11155111) and Hardhat (31337)
-        // If wallet is on another chain, switch to Sepolia by default
         if (chainId !== 31337 && chainId !== 11155111) {
-            console.log("Unsupported chain, switching to Sepolia...")
             switchChain({ chainId: 11155111 }).catch((err) => {
                 console.warn("Switch chain failed:", err.message)
             })
@@ -23,28 +71,21 @@ export default function Header() {
     }, [isConnected, chainId, switchChain])
 
     return (
-        <nav className="w-full bg-white dark:bg-gray-900 shadow-md p-5 flex flex-col md:flex-row justify-between items-center md:items-center gap-4 md:gap-0">
-            {/* Logo / Home */}
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                NFT Marketplace
-            </h1>
+        <nav style={S.nav}>
+            <Link href="/" style={S.logo}>
+                <span style={S.bracket}>[</span>
+                NFT.MKT
+                <span style={S.bracket}>]</span>
+            </Link>
 
-            {/* Navigation Links & Connect Button */}
-            <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6">
-                <Link
-                    href="/"
-                    className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-medium"
-                >
-                    Home
+            <div style={S.links}>
+                <Link href="/" style={S.link}>
+                    Market
                 </Link>
-                <Link
-                    href="/sell-nft"
-                    className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-medium"
-                >
-                    Sell NFT
+                <Link href="/sell-nft" style={S.link}>
+                    Manage
                 </Link>
-                {/* RainbowKit Connect Button */}
-                <ConnectButton showBalance={true} accountStatus="address" chainStatus="icon" />
+                <ConnectButton showBalance={false} accountStatus="address" chainStatus="icon" />
             </div>
         </nav>
     )

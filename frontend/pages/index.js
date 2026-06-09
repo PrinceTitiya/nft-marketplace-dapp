@@ -2,116 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { gql, request } from "graphql-request"
-import { useAccount, useWriteContract, usePublicClient, useSwitchChain } from "wagmi"
+import { useAccount, useWriteContract, usePublicClient } from "wagmi"
 import marketplaceAbi from "../constants/Marketplace.json"
 import networkMapping from "../constants/networkMapping.json"
 import { useChainId } from "wagmi"
 import { ethers } from "ethers"
 import { useEffect, useState } from "react"
 
-// ----------------- Style -------------------- //
-const styles = {
-    pageWrapper: {
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #0f0c29 0%, #1a1040 40%, #0d1b3e 70%, #0c0c1e 100%)",
-        position: "relative",
-        overflow: "hidden",
-        padding: "40px 20px",
-    },
-    orb1: {
-        position: "fixed",
-        top: "-120px",
-        left: "-120px",
-        width: "500px",
-        height: "500px",
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)",
-        filter: "blur(60px)",
-    },
-    orb2: {
-        position: "fixed",
-        bottom: "-100px",
-        right: "-100px",
-        width: "460px",
-        height: "460px",
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(139,92,246,0.3), transparent 70%)",
-        filter: "blur(70px)",
-    },
-    grid: {
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-        gap: "24px",
-        position: "relative",
-        zIndex: 1,
-    },
-    card: {
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        backdropFilter: "blur(18px)",
-        borderRadius: "18px",
-        padding: "16px",
-        transition: "0.25s",
-    },
-    img: {
-        width: "100%",
-        height: "180px",
-        objectFit: "cover",
-        borderRadius: "12px",
-        marginBottom: "12px",
-    },
-    placeholder: {
-        width: "100%",
-        height: "180px",
-        borderRadius: "12px",
-        background: "rgba(255,255,255,0.06)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#94a3b8",
-        marginBottom: "12px",
-    },
-    name: {
-        color: "#e2e8f0",
-        fontWeight: "700",
-    },
-    text: {
-        color: "#94a3b8",
-        fontSize: "0.8rem",
-    },
-    price: {
-        color: "#c7d2fe",
-        fontWeight: "600",
-        marginTop: "4px",
-    },
-    btn: {
-        marginTop: "10px",
-        width: "100%",
-        padding: "10px",
-        background: "linear-gradient(135deg, #6366f1, #4f46e5)",
-        border: "none",
-        borderRadius: "10px",
-        color: "#fff",
-        fontWeight: "600",
-        cursor: "pointer",
-    },
-    btnDisabled: {
-        opacity: 0.5,
-        cursor: "not-allowed",
-    },
-    badge: {
-        position: "absolute",
-        top: "8px",
-        right: "8px",
-        background: "#7c3aed",
-        color: "#fff",
-        fontSize: "0.6rem",
-        padding: "4px 8px",
-        borderRadius: "999px",
-    },
-}
-
-// Creating a query for active listing
 const GET_ACTIVE_ITEMS = gql`
     query GetActiveItems($first: Int!, $skip: Int!) {
         activeItems(first: $first, skip: $skip, orderBy: tokenId) {
@@ -125,7 +22,6 @@ const GET_ACTIVE_ITEMS = gql`
 `
 
 const SUBGRAPH_URL = "https://api.studio.thegraph.com/query/102524/nft-marketplace/version/latest"
-
 const metadataCache = {}
 
 function useListings(page = 0) {
@@ -159,35 +55,27 @@ async function fetchNftMetadata(publicClient, nftAddr, tokenId) {
             functionName: "tokenURI",
             args: [BigInt(tokenId)],
         })
-
         const url = tokenUri.startsWith("ipfs://")
             ? tokenUri.replace("ipfs://", "https://ipfs.io/ipfs/")
             : tokenUri
-
         const res = await fetch(url)
         const metadata = await res.json()
-
         return {
             name: metadata.name,
             image: metadata.image?.startsWith("ipfs://")
                 ? metadata.image.replace("ipfs://", "https://ipfs.io/ipfs/")
                 : metadata.image,
         }
-    } catch (err) {
-        console.error(`Metadata fetch failed for ${nftAddr}-${tokenId}`, err)
-        return {
-            name: `#${tokenId}`,
-            image: null,
-        }
+    } catch {
+        return { name: `#${tokenId}`, image: null }
     }
 }
 
 export default function GraphMarketplace() {
-    const [page, setPage] = useState(0)
+    const [page] = useState(0)
     const { data: listings, status, refetch } = useListings(page)
     const [metadata, setMetadata] = useState({})
 
-    const { switchChain } = useSwitchChain()
     const { address, isConnected } = useAccount()
     const { writeContract } = useWriteContract()
     const chainId = useChainId()
@@ -196,30 +84,19 @@ export default function GraphMarketplace() {
     const marketplaceAddress = networkMapping[chainId]?.NftMarketplace?.[0]
     const SEPOLIA_CHAIN_ID = 11155111
 
-    // fetch metadata
     useEffect(() => {
         if (!listings || !publicClient) return
 
         async function loadMetadata() {
             const metaMap = {}
-
             await Promise.all(
                 listings.map(async (item) => {
                     const key = `${item.nftAddress}-${item.tokenId}`
-
-                    // check cache first
                     if (metadataCache[key]) {
                         metaMap[key] = metadataCache[key]
                         return
                     }
-
-                    // Fetch if not cached
-                    const meta = await fetchNftMetadata(
-                        publicClient,
-                        item.nftAddress,
-                        item.tokenId
-                    )
-
+                    const meta = await fetchNftMetadata(publicClient, item.nftAddress, item.tokenId)
                     if (meta) {
                         metadataCache[key] = meta
                         metaMap[key] = meta
@@ -231,10 +108,6 @@ export default function GraphMarketplace() {
         loadMetadata()
     }, [listings, publicClient])
 
-    if (isConnected && chainId !== SEPOLIA_CHAIN_ID) {
-        return <div>Wrong Network UI...</div>
-    }
-
     const handleBuy = async (listing) => {
         await writeContract({
             address: marketplaceAddress,
@@ -243,55 +116,91 @@ export default function GraphMarketplace() {
             args: [listing.nftAddress, listing.tokenId],
             value: listing.price,
         })
-        refetch() // refreshes listings after buying item
+        refetch()
     }
 
-    if (status === "pending") return <p>Loading....</p>
-    if (status === "error") return <p>Error Loading data</p>
+    if (isConnected && chainId !== SEPOLIA_CHAIN_ID) {
+        return (
+            <div style={S.centerWrap}>
+                <p style={S.errCode}>ERR // WRONG_NETWORK</p>
+                <p style={S.errMsg}>Connect to Sepolia testnet to browse listings.</p>
+            </div>
+        )
+    }
+
+    if (status === "pending") {
+        return (
+            <div style={S.centerWrap}>
+                <span className="mono" style={S.loadText}>
+                    FETCHING LISTINGS
+                    <span style={{ color: "#00e5ff" }}>...</span>
+                </span>
+            </div>
+        )
+    }
+
+    if (status === "error") {
+        return (
+            <div style={S.centerWrap}>
+                <p style={S.errCode}>ERR // SUBGRAPH_FETCH_FAILED</p>
+                <p style={S.errMsg}>Unable to load listings. Check your connection.</p>
+            </div>
+        )
+    }
 
     return (
-        <div style={styles.pageWrapper}>
-            <div style={styles.orb1} />
-            <div style={styles.orb2} />
-
+        <div style={S.page}>
             {listings.length === 0 ? (
-                <p style={{ color: "#94a3b8", textAlign: "center" }}>No NFTs listed yet</p>
+                <div style={S.centerWrap}>
+                    <div style={S.emptyIcon}>○</div>
+                    <p className="mono" style={S.emptyText}>
+                        NO ACTIVE LISTINGS
+                    </p>
+                </div>
             ) : (
-                <div style={styles.grid}>
+                <div style={S.grid}>
                     {listings.map((listing, i) => {
                         const meta = metadata[`${listing.nftAddress}-${listing.tokenId}`]
+                        const isOwned =
+                            address &&
+                            listing.seller?.toLowerCase() === address.toLowerCase()
 
                         return (
-                            <div key={i} style={styles.card}>
-                                <div style={{ position: "relative" }}>
+                            <div key={i} className="nft-card">
+                                {/* Image */}
+                                <div style={S.imgWrap}>
                                     {meta?.image ? (
-                                        <img src={meta.image} style={styles.img} />
+                                        <img
+                                            src={meta.image}
+                                            alt={meta?.name}
+                                            style={S.img}
+                                        />
                                     ) : (
-                                        <div style={styles.placeholder}>Loading...</div>
+                                        <div className="skeleton" style={S.imgSkeleton} />
                                     )}
-
-                                    {address &&
-                                        listing.seller?.toLowerCase() ===
-                                            address.toLowerCase() && (
-                                            <span style={styles.badge}>OWNED</span>
-                                        )}
+                                    {isOwned && (
+                                        <span className="mono" style={S.badge}>
+                                            OWNED
+                                        </span>
+                                    )}
                                 </div>
 
-                                <p style={styles.name}>{meta?.name || `#${listing.tokenId}`}</p>
-
-                                <p style={styles.text}>{listing.seller.slice(0, 10)}...</p>
-
-                                <p style={styles.price}>{ethers.formatEther(listing.price)} ETH</p>
+                                {/* Info */}
+                                <p style={S.nftName}>{meta?.name ?? `Token #${listing.tokenId}`}</p>
+                                <p className="mono" style={S.seller}>
+                                    {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
+                                </p>
+                                <p className="mono" style={S.price}>
+                                    {ethers.formatEther(listing.price)} ETH
+                                </p>
 
                                 <button
-                                    style={{
-                                        ...styles.btn,
-                                        ...(!isConnected ? styles.btnDisabled : {}),
-                                    }}
+                                    className="btn btn-cyan btn-full"
+                                    style={{ marginTop: "12px" }}
                                     onClick={() => handleBuy(listing)}
                                     disabled={!isConnected}
                                 >
-                                    Buy Now
+                                    {isConnected ? "BUY ITEM" : "CONNECT WALLET"}
                                 </button>
                             </div>
                         )
@@ -300,4 +209,110 @@ export default function GraphMarketplace() {
             )}
         </div>
     )
+}
+
+const S = {
+    page: {
+        position: "relative",
+        zIndex: 1,
+        padding: "32px 24px",
+        minHeight: "calc(100vh - 64px)",
+    },
+    grid: {
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+        gap: "20px",
+    },
+    imgWrap: {
+        position: "relative",
+        width: "100%",
+        aspectRatio: "1 / 1",
+        overflow: "hidden",
+        borderRadius: "8px",
+        marginBottom: "14px",
+        background: "rgba(168, 85, 247, 0.06)",
+    },
+    img: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "block",
+    },
+    imgSkeleton: {
+        width: "100%",
+        height: "100%",
+    },
+    badge: {
+        position: "absolute",
+        top: "8px",
+        right: "8px",
+        background: "rgba(5, 5, 10, 0.88)",
+        border: "1px solid rgba(168, 85, 247, 0.55)",
+        color: "#d8b4fe",
+        fontSize: "0.58rem",
+        letterSpacing: "0.14em",
+        padding: "3px 8px",
+        borderRadius: "4px",
+    },
+    nftName: {
+        fontSize: "1rem",
+        fontWeight: "700",
+        color: "#ffffff",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        marginBottom: "4px",
+    },
+    seller: {
+        fontSize: "0.75rem",
+        color: "#9a9a9a",
+        marginBottom: "6px",
+    },
+    price: {
+        fontSize: "0.95rem",
+        fontWeight: "700",
+        letterSpacing: "0.02em",
+        background: "linear-gradient(90deg, #a855f7, #d8b4fe)",
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+    },
+    centerWrap: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "calc(100vh - 64px)",
+        gap: "10px",
+        position: "relative",
+        zIndex: 1,
+    },
+    loadText: {
+        fontSize: "0.72rem",
+        letterSpacing: "0.16em",
+        color: "rgba(168, 85, 247, 0.45)",
+    },
+    emptyIcon: {
+        fontSize: "1.8rem",
+        color: "rgba(168, 85, 247, 0.35)",
+        fontWeight: "100",
+        lineHeight: 1,
+    },
+    emptyText: {
+        fontSize: "0.68rem",
+        letterSpacing: "0.16em",
+        color: "rgba(168, 85, 247, 0.45)",
+    },
+    errCode: {
+        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+        fontSize: "0.68rem",
+        letterSpacing: "0.15em",
+        color: "#f85149",
+    },
+    errMsg: {
+        fontSize: "0.82rem",
+        color: "#9a9a9a",
+        maxWidth: "360px",
+        textAlign: "center",
+    },
 }

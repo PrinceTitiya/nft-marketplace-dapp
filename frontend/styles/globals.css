@@ -1,3 +1,289 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Design tokens ── */
+:root {
+  --bg: #05050a;
+  --surface: #0e0b1a;
+  --surface-hi: #16122a;
+  --border: rgba(168, 85, 247, 0.15);
+  --border-hi: rgba(168, 85, 247, 0.32);
+  --accent: #a855f7;
+  --accent-light: #d8b4fe;
+  --accent-dim: rgba(168, 85, 247, 0.1);
+  --accent-glow: rgba(168, 85, 247, 0.2);
+  --text-1: #ffffff;
+  --text-2: #d8b4fe;
+  --text-3: #9a9a9a;
+  --red: #f85149;
+  --red-dim: rgba(248, 81, 73, 0.09);
+  --red-border: rgba(248, 81, 73, 0.3);
+  --green: #3fb950;
+  --green-dim: rgba(63, 185, 80, 0.09);
+  --green-border: rgba(63, 185, 80, 0.3);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Purple dot-grid texture */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(168, 85, 247, 0.09) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── NFT card ── */
+.nft-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.nft-card:hover {
+  border-color: rgba(168, 85, 247, 0.45);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(168, 85, 247, 0.18);
+}
+
+/* Corner-bracket accent on hover */
+.nft-card::before,
+.nft-card::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--accent);
+  border-style: solid;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.nft-card::before {
+  top: 0;
+  left: 0;
+  border-width: 1px 0 0 1px;
+  border-radius: 12px 0 0 0;
+}
+
+.nft-card::after {
+  bottom: 0;
+  right: 0;
+  border-width: 0 1px 1px 0;
+  border-radius: 0 0 12px 0;
+}
+
+.nft-card:hover::before,
+.nft-card:hover::after {
+  opacity: 1;
+}
+
+/* ── Panel (sell-nft sections) ── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 26px;
+}
+
+/* ── 2-column grid ── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin: 0 0 20px 0;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+}
+
+/* ── Input field ── */
+.field {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(168, 85, 247, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-size: 0.875rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.field:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.field::placeholder {
+  color: rgba(168, 85, 247, 0.3);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* Primary — filled purple gradient */
+.btn-cyan {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.3);
+}
+
+.btn-cyan:not(:disabled):hover {
+  background: linear-gradient(135deg, #6d28d9 0%, #9333ea 100%);
+  box-shadow: 0 6px 24px rgba(168, 85, 247, 0.45);
+}
+
+/* Destructive */
+.btn-red {
+  background: var(--red-dim);
+  border-color: var(--red-border);
+  color: var(--red);
+}
+
+.btn-red:not(:disabled):hover {
+  background: rgba(248, 81, 73, 0.14);
+  box-shadow: 0 4px 16px rgba(248, 81, 73, 0.2);
+}
+
+/* Confirm */
+.btn-green {
+  background: var(--green-dim);
+  border-color: var(--green-border);
+  color: var(--green);
+}
+
+.btn-green:not(:disabled):hover {
+  background: rgba(63, 185, 80, 0.14);
+  box-shadow: 0 4px 16px rgba(63, 185, 80, 0.2);
+}
+
+/* Ghost — purple-tinted outline */
+.btn-ghost {
+  background: transparent;
+  border-color: rgba(168, 85, 247, 0.28);
+  color: var(--accent-light);
+}
+
+.btn-ghost:not(:disabled):hover {
+  border-color: rgba(168, 85, 247, 0.5);
+  background: rgba(168, 85, 247, 0.07);
+  color: #ffffff;
+}
+
+/* ── Monospace ── */
+.mono {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+}
+
+/* ── Skeleton shimmer (purple tint) ── */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(168, 85, 247, 0.04) 25%,
+    rgba(168, 85, 247, 0.1) 50%,
+    rgba(168, 85, 247, 0.04) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.8s infinite linear;
+  border-radius: 8px;
+}
+
+/* ── Toast slide-in ── */
+@keyframes slideInToast {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.35);
+  border-radius: 2px;
+}
