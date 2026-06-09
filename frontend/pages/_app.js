@@ -7,9 +7,23 @@ import { RainbowKitProvider, getDefaultConfig, darkTheme } from "@rainbow-me/rai
 import { WagmiProvider } from "wagmi"
 import { sepolia } from "wagmi/chains"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import Image from "next/image"
 
 //Header file import
 import Header from "../components/Header"
+
+function CustomAvatar({ size }) {
+    return (
+        <Image
+            src="/user-avatar.png"
+            alt="User Avatar"
+            width={size}
+            height={size}
+            style={{ borderRadius: "50%" }}
+            unoptimized
+        />
+    )
+}
 
 //  React Query Client
 const queryClient = new QueryClient()
@@ -40,7 +54,7 @@ export default function App({ Component, pageProps }) {
     return (
         <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
-                <RainbowKitProvider modalSize="compact" theme={darkTheme()}>
+                <RainbowKitProvider modalSize="compact" theme={darkTheme()} avatar={CustomAvatar}>
                     <Head>
                         <title>NFT Marketplace</title>
                         <meta
