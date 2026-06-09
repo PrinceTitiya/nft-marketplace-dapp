@@ -1,5 +1,6 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit"
 import Link from "next/link"
+import Image from "next/image"
 import { useEffect } from "react"
 import { useAccount, useChainId, useSwitchChain } from "wagmi"
 
@@ -24,11 +25,15 @@ const S = {
         textDecoration: "none",
         display: "flex",
         alignItems: "center",
-        gap: "4px",
+        gap: "8px",
         background: "linear-gradient(90deg, #a855f7 0%, #d8b4fe 50%, #ffffff 100%)",
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
         backgroundClip: "text",
+    },
+    logoIcon: {
+        flexShrink: 0,
+        borderRadius: "6px",
     },
     bracket: {
         background: "linear-gradient(90deg, #a855f7, #d8b4fe)",
@@ -73,6 +78,14 @@ export default function Header() {
     return (
         <nav style={S.nav}>
             <Link href="/" style={S.logo}>
+                <Image
+                    src="/nft-logo.ico"
+                    alt="NFT Marketplace Logo"
+                    width={32}
+                    height={32}
+                    style={S.logoIcon}
+                    unoptimized
+                />
                 <span style={S.bracket}>[</span>
                 NFT.MKT
                 <span style={S.bracket}>]</span>
